@@ -1,0 +1,14 @@
+{
+	"name": "Q20PokemonBot",
+	"version": "0.0.0",
+	"description": "Performs a 20 questions game in freenode irc. Also stuff for #tppleague.",
+
+	"dependencies": {
+		"irc": "0.3.7",
+		"natural": "0.1.28",
+		"extend": "2.0.0",
+		"inherits": "2.0.1",
+		"sqlite3": "3.0.4",
+		"underscore": "1.7.0"
+	}
+}
