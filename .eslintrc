@@ -1,0 +1,11 @@
+{
+	"globals" : {
+		"bot" : false,
+		"currChans" : false,
+		"log" : false,
+		"sayLog" : false,
+		"error" : false,
+		"safely" : false,
+		"setTimeoutSafely": false
+	}
+}

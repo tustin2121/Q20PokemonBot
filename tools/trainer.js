@@ -375,7 +375,7 @@ classifier.train();
 db.close(function(){
 	console.log("Database now closed.");
 	
-	classifier.save("classifier.json", function(err){
+	classifier.save("../data/classifier.json", function(err){
 		if (err) throw err;
 		console.log("Classifier Saved!");
 	});
