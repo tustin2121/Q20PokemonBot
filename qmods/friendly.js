@@ -4,6 +4,7 @@ console.log("Loading Module friendly.js");
 var extend = require("extend");
 var irccolors = require("irc").colors;
 var fs = require("fs");
+var _ = require("underscore");
 
 var cdi_interval = 0;
 
@@ -30,7 +31,8 @@ module.exports = {
 		bot.addListener("kill", turnOn);
 		bot.addListener("quit", netsplitHype);
 		bot.addListener("message#tppleague", chatmessage);
-		bot.addListener("+mode", respondOp);
+		bot.addListener("+mode", respondOpOn);
+		bot.addListener("-mode", respondOpOff);
 		bot.addListener("notice", respondNotice);
 		// bot.addListener("raw", debugRaw);
 		
@@ -46,7 +48,8 @@ module.exports = {
 		bot.removeListener("kill", turnOn);
 		bot.removeListener("quit", netsplitHype);
 		bot.removeListener("message#tppleague", chatmessage);
-		bot.removeListener("+mode", respondOp);
+		bot.removeListener("+mode", respondOpOn);
+		bot.removeListener("-mode", respondOpOff);
 		bot.removeListener("notice", respondNotice);
 		// bot.removeListener("raw", debugRaw);
 		
@@ -55,6 +58,7 @@ module.exports = {
 	
 	migrate : function(old) {
 		extend(this.state, old.state);
+		// state.tv_tropes_timeout = 0;
 	},
 }
 
@@ -71,6 +75,7 @@ var state = module.exports.state = {
 	puppy_score_dead: 0,
 	
 	wtf_count : 0,
+	tv_tropes_timeout : 0,
 	
 	lastNamesListing : null,
 	
@@ -80,6 +85,11 @@ var state = module.exports.state = {
 	cdi_minSamples: 5,
 	cdi_currAvgCount: 0,
 	
+	modmode : false,
+	
+	lastQuoteRequested : null,
+	lastQuoteRequestor : null,
+	lastLyWord : null,
 };
 
 
@@ -96,6 +106,7 @@ function debugRaw(msg) {
 function namesCheck(nicks){
 	safely(function(){
 		console.log(nicks);
+		var voiceBatch = [];
 		for (var name in nicks) {
 			console.log("league names: ", name);
 			if (/^doofbot$/i.test(name)) {
@@ -106,6 +117,27 @@ function namesCheck(nicks){
 				state.puppy = true;
 				console.log("puppy: ", state.puppy);
 			}
+			
+			if (state.modmode // If in mod mode
+				&& !/^(doof|doot|yay|pikalax)bot\d?$/i.test(name) // if not a known bot
+				&& !/[@\\+]+/i.test(nicks[name])) //If doesn't already have voice/op
+			{
+				voiceBatch.push(name);
+				
+				if (voiceBatch.length >= 4) {
+					// MODE #TPPTableTop +v Q20PokemonBot
+					console.log('.send("MODE", "#tppleague", "+v", name);');
+					bot.send("MODE", "#tppleague", "+v", voiceBatch.join(" "));
+					voiceBatch = [];
+				}
+			}
+		}
+		
+		if (voiceBatch.length > 0) {
+			// MODE #TPPTableTop +v Q20PokemonBot
+			console.log('.send("MODE", "#tppleague", "+v", name);');
+			bot.send("MODE", "#tppleague", "+v", voiceBatch.join(" "));
+			voiceBatch = null;
 		}
 	});
 }
@@ -121,23 +153,29 @@ function joinCheck(nick, msg){
 			state.friendly = false;
 			console.log("friendly: ", state.friendly);
 		}
-		if (/^(dead|mobile)insky/i.test(nick)) {
-			state.puppy = true;
-			console.log("puppy: ", state.puppy);
-		}
 		
-		if (state.friendly) {
+		if (state.modmode) {
+			bot.say("#tppleague", "o/ Please respect the current discussion.")
+		} else if (state.friendly) {
 			bot.say("#tppleague", "o/");
 		}
 		
-		if (nick == "Deadinsky66" || nick == "mobileinsky66")
-			bot.say("#tppleague", "\\o/");
+		if (state.modmode && !/(doof|doot|yay|pikalax)bot\d?$/i.test(nick)) {
+			// MODE #TPPTableTop +v Q20PokemonBot
+			console.log('.send("MODE", "#tppleague", "+v", nick);');
+			bot.send("MODE", "#tppleague", "+v", nick);
+		}
+		
 	});
 }
 
 function turnOn(nick, msg){
 	safely(function(){
 		state.lastNamesListing = null;
+		
+		if (nick == bot.nick) {
+			state.modmode = false; //Forcibly disabled modmode :(
+		}
 		
 		if (/^hftf$/i.test(nick) && state.friendly) {
 			bot.say("#tppleague", "no rip");
@@ -146,10 +184,6 @@ function turnOn(nick, msg){
 		if (/^doofbot$/i.test(nick)) {
 			state.friendly = true;
 			console.log("friendly: ", state.friendly);
-		}
-		if (/^(dead|mobile)insky/i.test(nick)) {
-			state.puppy = false;
-			console.log("puppy: ", state.puppy);
 		}
 	});
 }
@@ -178,6 +212,8 @@ function netsplitHype(nick, reason, msg) {
 	if (reason != "*.net *.split") return;
 	console.log("Netsplit hype! \\o/");
 	
+	if (state.modmode) return;
+	
 	if (!_netsplit_hype_timer) {
 		_netsplit_hype_timer = setTimeout(function(){
 			try {
@@ -192,32 +228,62 @@ function respondNotice(nick, to, txt, msg) {
 	if (!nick) return;
 	if (nick == "ChanServ") {
 		var res;
-		if (res = /You have been opped on (#[a-zA-Z0-9]+) by ([a-zA-Z0-9_\-\\\[\]\{\}\^\`\|]+)(?: \(([a-zA-Z0-9_\-\\\[\]\{\}\^\`\|]+)\))?/i.exec(txt)) {
-			var chan = res[1];
-			var nick = res[2];
-			var user = res[3];
+		if (res = /You have been (de)?opped on (#[a-zA-Z0-9]+) by ([a-zA-Z0-9_\-\\\[\]\{\}\^\`\|]+)(?: \(([a-zA-Z0-9_\-\\\[\]\{\}\^\`\|]+)\))?/i.exec(txt)) {
+			var de   = res[1];
+			var chan = res[2];
+			var nick = res[3];
+			var user = res[4];
 			
-			console.log("Op via ChanServ: ", chan, nick, user);
-			respondOp(chan, nick, "o", bot.nick, msg, user);
+			if (de) {
+				console.log("Deop via ChanServ: ", chan, nick, user);
+				respondOpOff(chan, nick, "o", bot.nick, msg, user);
+			} else {
+				console.log("Op via ChanServ: ", chan, nick, user);
+				respondOpOn(chan, nick, "o", bot.nick, msg, user);
+			}
 		}
 	}
 }
 
-function respondOp(channel, by, mode, arg, msg, username){
+function respondOpOn(channel, by, mode, arg, msg, username){
 	safely(function(){
 		if (channel != "#tppleague" && channel != "#TPPTableTop") return;
 		if (by == "ChanServ") return;
 		if (mode == "o" && arg == bot.nick) {
 			
-			console.log('.send("KICK", channel, by, "Opping a bot");');
-			bot.send("KICK", channel, by, "Opping a bot");
+			// console.log('.send("KICK", channel, by, "Opping a bot");');
+			// bot.send("KICK", channel, by, "Opping a bot");
 			
-			console.log('.send("MODE", channel, "-o", bot.nick);');
-			bot.send("MODE", channel, "-o", bot.nick);
+			// console.log('.send("MODE", channel, "-o", bot.nick);');
+			// bot.send("MODE", channel, "-o", bot.nick);
 			// bot.say(channel, "The bot takeovers haven't been going according to plan...");
-			bot.say(channel, (username || by)+", pls...");
-			return;
+			bot.say(channel, (username || by)+" has initiated 'responsible mode'.");
+			// bot.say(channel, "ERROR: 'responsible mode' has not yet been implemented... TriHard");
+			state.modmode = true;
 			
+			// NAMES #tppleague
+			console.log('.send("NAMES", channel);');
+			bot.send("NAMES", channel);
+			return;
+		}
+	});
+}
+
+function respondOpOff(channel, by, mode, arg, msg, username){
+	safely(function(){
+		if (channel != "#tppleague" && channel != "#TPPTableTop") return;
+		if (by == "ChanServ") return;
+		if (mode == "o" && arg == bot.nick) {
+			
+			// console.log('.send("KICK", channel, by, "Opping a bot");');
+			// bot.send("KICK", channel, by, "Opping a bot");
+			
+			// console.log('.send("MODE", channel, "-o", bot.nick);');
+			// bot.send("MODE", channel, "-o", bot.nick);
+			// bot.say(channel, "The bot takeovers haven't been going according to plan...");
+			bot.say(channel, (username || by)+" has disabled 'responsible mode'. Warning: Kappas may ensue.");
+			state.modmode = false;
+			return;
 		}
 	});
 }
@@ -297,7 +363,6 @@ function oldBotTakeoverScript(channel, by, mode, arg) {
 	}
 }
 
-
 var ggCount = 0;
 var lastmsg = 0;
 var cmds = [];
@@ -319,23 +384,39 @@ function chatmessage(nick, text, msg) {
 		
 		// Section for responding to bots:
 		
-		if (/^doofbot$/i.test(nick)) {
+		if (/^doofbot$/i.test(nick) && !state.modmode) {
 			if (/^traitor$/i.test(text)) bot.say("#tppleague", "asshole");
 			if (/^pouet$/i.test(text)) bot.say("#tppleague", "ech");
 			if (/^ith a rather large trout!$/.test(text))
 				bot.action("#tppleague", "snatches Doof's large trout before it can take a second swing and eats the fish whole.");
 		}
 		
+		if (/^dootbot$/i.test(nick) && state.modmode) {
+			if (/(KAPOW )+/.test(text)) {
+				// KICK #TPPTableTop Q20PokemonBot
+				console.log('.send("KICK", "#tppleague", nick, "Inappropriate behavior!");');
+				bot.send("KICK", "#tppleague", nick, "Inappropriate behavior!");
+				return;
+			}
+		}
+		
+		{
+			var res;
+			if ((res = /([a-zA-Z]+ly)/i.exec(text))) {
+				state.lastLyWord = res[1];
+			}
+		}
+		
 		
 		// Bot Aboose guard
-		if (/bot$/i.test(nick) || /doot|doof|^!/.test(text)) return;
+		if (/bot$/i.test(nick) || /doot|doof|^!/.test(text) || state.modmode) return;
 		
 		// Section for responding to people (that are not spamming)
 		
 		{
 			var res;
-			if ((res = /http:\/\/i\.imgur\.com\/([a-zA-Z0-9]{5,7})\.([a-zA-Z]{2,5})/i.exec(text))) {
-				bot.say("#tppleague", "[Mobile View:] http://i.imgur.com/"+res[1]+"m."+res[2]);
+			if ((res = /http(s):\/\/i\.imgur\.com\/([a-zA-Z0-9]{5,7})\.([a-zA-Z]{2,5})/i.exec(text))) {
+				bot.say("#tppleague", "[Mobile View:] http"+res[1]+"://i.imgur.com/"+res[2]+"m."+res[3]);
 				return;
 			}
 		}
@@ -347,6 +428,23 @@ function chatmessage(nick, text, msg) {
 		
 		if (/tinyurl\.com\//.test(text)) {
 			bot.say("#tppleague", "[ Link: probably porn ]");
+			return;
+		}
+		
+		if (/tvtropes\.org\//.test(text)) {
+			bot.say("#tppleague", "[ Link Warning: TV TROPES! ]");
+			if (!state.tv_tropes_timeout) {
+				var delay = 60 * 1000 * (Math.floor(Math.random()*240) + 90); //anywhere from 1.5 to 5.5 hours!
+				console.log("Visiting TV Tropes for",(delay/(1000*60*60)),"hours.");
+				// var delay = 60 * (Math.floor(Math.random()*240) + 90); //anywhere from 1.5 to 5.5 hours!
+				// console.log("Visiting TV Tropes for",(delay/(60*60)),"hours.");
+				state.tv_tropes_timeout = setTimeout(function(){
+					console.log("Returning from TV Tropes");
+					state.tv_tropes_timeout = null;
+					bot.action("#tppleague", "returns from TV Tropes, groggy, enlightened, and knowing too much about random movies and TV shows.");
+				}, delay);
+				bot.action("#tppleague", "unwittingly follows the link to TV Tropes....");
+			}
 			return;
 		}
 		
@@ -364,21 +462,27 @@ function chatmessage(nick, text, msg) {
 		if (/take(s|ing)? over the world/i.test(text)) {
 			bot.say("#tppleague", "OF COURSE!!");
 		}
+		
+		if (/i[st] (tpp|twitchplayspokemon|this) still? a thing\??/i.test(text)) {
+			bot.say("#tppleague", "It is still.");
+		}
 	});
 	
 	if (text.indexOf("!") != 0) return;
 	
 	safely(function(){
-		
 		var now = new Date().getTime();
 		if (now < lastmsg + 5000) return; //5 second spam wait
-		lastmsg = now;
+		
+		if (/^doof|^doot|bot$/i.test(nick)) return;
 		
 		var res = null;
 		var txt = text.substr(1);
 		for (var i = 0; i < cmds.length; i++) {
+			if (state.modmode && !cmds[i]["mod"]) continue; //don't execute certain commands in modmode
 			if (res = cmds[i].cmd.exec(txt)) {
 				cmds[i].run(nick, text, res, msg);
+				lastmsg = now;
 				return;
 			}
 		}
@@ -427,6 +531,7 @@ function authenticate(nick, permittedCallback) {
 
 cmds.push({
 	cmd : /^friendly ?(true|false)?/i,
+	modmode: true,
 	run : function(nick, text, res){
 		if (!res[1]) {
 			bot.say("#tppleague", (state.friendly)?"true":"false");
@@ -449,6 +554,7 @@ cmds.push({
 
 cmds.push({
 	cmd : /^log/i,
+	modmode: true,
 	run : function(nick, text, res) {
 		bot.say("#tppleague", nick+": Log: https://tppleague.me/irc/");
 	}
@@ -456,6 +562,7 @@ cmds.push({
 
 cmds.push({
 	cmd : /^(forum|meta)$/i,
+	modmode: true,
 	run : function(nick, text, res) {
 		bot.say("#tppleague", nick+": Forums: https://meta.tppleague.me/");
 	}
@@ -476,6 +583,7 @@ cmds.push({
 
 cmds.push({
 	cmd : /^cdi/i,
+	modmode: true,
 	run : function(nick, text, res) {
 		if (state.cdi_lastAvgs.length < state.cdi_minSamples) {
 			bot.say("#tppleague", "I cannot determine the Chat Death Index at this time.");
@@ -617,7 +725,7 @@ cmds.push({
 		flipTable[flipTable[i]] = i
 	}
 	
-	lastflip = 0;
+	var lastflip = 0;
 	cmds.push({
 		cmd : /^flip ?(.*)/i,
 		run : function(nick, text, res) {
@@ -657,8 +765,9 @@ cmds.push({
 				case "prt":
 				case "pleaserespecttables":
 					bot.say("#tppleague", "/u/PleaseRespectTables ノ(ಠ_ಠノ)"); break;
-				case 0: 
-					bot.say("#tppleague", "┬─┬"); break;
+				case 0:
+					bot.say("#tppleague", "ＬＥＡＶＥ　ＴＨＥ　ＧＯＤＤＡＭＮＥＤ　ＴＡＢＬＥ　ＡＬＯＮＥ！！！　 (•̪●)=ε/̵͇̿̿/'̿'̿ ̿ ̿̿ ̿ ̿”┬─┬Ψ(° д°)"); break;
+					//bot.say("#tppleague", "┬─┬"); break;
 				default:
 					bot.say("#tppleague", lastflip+" ノ(ಠ_ಠノ)"); break;
 			}
@@ -688,599 +797,177 @@ cmds.push({
 		if (Math.random() < 0.80) {
 			var weapon = [["stabs", "fork"], ["stabs", "knife"], ["fillets", "knife"], ["chops", "spoon"], ["slices", "knife"], ["punctures", "fork"], ["smashes", "banhammer"]];
 			var w = weapon[Math.floor(Math.random() * weapon.length)];
+			var streamer = (Math.random() < 0.7)?"the Streamer":"SoNick";
 			
-			bot.say("#tppleague", nick+" watches as the Streamer violently "+w[0]+" at a plate of "+p+" with a "+w[1]+".");
+			bot.say("#tppleague", nick+" watches as "+streamer+" violently "+w[0]+" at a plate of "+p+" with a "+w[1]+".");
 		} else {
 			var weapon = [["mutilate", "spatula"], ["stab", "spoon"], ["chop", "knife"], ["sledge", "bat"], ["damage", "spoon"], ["powderize", "knife"], ["puncture", "tea towel"], ["flatten", "napkin"]];
 			var w = weapon[Math.floor(Math.random() * weapon.length)];
 			
 			const emotions = ["dismay", "unbridled fury", "disgust", "contempt", "rage", "annoyance"];
 			var e = emotions[Math.floor(Math.random() * emotions.length)];
+			var streamer = (Math.random() < 0.5)?"Deku":"Revo";
 
-			bot.say("#tppleague", nick+" watches as Deku attempts to "+w[0]+" a plate of "+p+" with a "+w[1]+". The "+p+" is unharmed, to his "+e+".");
+			bot.say("#tppleague", nick+" watches as "+streamer+" attempts to "+w[0]+" a plate of "+p+" with a "+w[1]+". The "+p+" is unharmed, to his "+e+".");
 		}
 	}
 });
 
-(function(){
-	
-	var showdownText = [
-		//payoff: 2 = crit success, 1 = success, 0 = meet, -1 = failure, -2 = crit fail
-		{
-			setup: "Deadinsky66 turns into an alleyway and is met with five puppies. It looks like they had been waiting for him...",
-			win_score: 4,
-			lose_score: 1,
-			payoff: {
-				"2": "Deadinsky jumps out of the way of their attack and lands behind the gang of puppies. He does a hurricane kick, knocking the puppies around a bunch before they can scamper.",
-				"1": "The puppies all jump Deadinsky all at once, but he manages to dodge and fend off the majority of their hits. He kicks them down and they scamper.",
-				"0": "Deadinsky turns and runs, but the puppies are right on his tail, nipping at his heels. He manages to smack one of them before he loses them down another alley.",
-				"-1": "Deadinsky turns and runs, but the puppies are on top of him before he can get far. They kick his ass a few times over. He manages to get away eventually.",
-				"-2": "Deadinsky turns to run, but there's another group of puppies that have closed in behind him. When he wakes next near the dumpster, he finds himself shoeless and missing his wallet again.",
-			},
-		},
-		{
-			setup: "Deadinsky66 sits in the park, eating a bannana. Unbeknownst to him, a cadre of ninja-puppies is lying in wait in a tree just above him...",
-			win_score: 4,
-			lose_score: 0,
-			payoff: {
-				"2": "The hair on the back of Deadinsky's neck stands on end, and he know's he's surrounded moments before the ninja-puppies strike. They attack, but he fends them off effortlessly with his own mod-ninja skills. The bannana and victory were delicious.",
-				"1": "Deadinsky just happens to lean over as the first ninja-puppy makes his strike. The shurikin misses, and deadinsky uses his own mod-ninja abilities to fend off the rest of the clan. His bannana fell into the dirt during the kurfuffle, however.",
-				"0": "Deadinsky goes to take a bite of the bannana when it is cut in half by a shuriken. He scampers as the ninja-puppies fall from the tree and go after him, but he manages to get away unharmed...",
-				"-1": "Deadinsky goes to take a bite of the bannana when it is cut in half by a shuriken. Another shuriken pins his sleeves to the tree. The ninja-puppies decend upon him and knock him out. His bannana is now ant food.",
-				"-2": "Deadinsky goes to take a bite of the bannana when he is knocked out cold from behind by one of the ninja-puppies. When he wakes next in an alleyway, his bannana is smeared all over his shirt, and his wallet was missing again.",
-			}
-		},
-		{
-			setup: "Deadinsky66 comes upon a small ragged puppy all alone on the sidewalk. He instinctively goes to kick it.",
-			win_score: 2,
-			lose_score: 0,
-			payoff: {
-				"2": "Deadinsky swings his foot at the poor puppy and punts it across the street. It smacks into a second puppy, and into a third and fourth. Deadinsky continues to walk smugly down the street.",
-				"1": "Deadinsky swings his foot at the poor puppy. The puppy latches onto his foot and it takes Dead a couple shakes to send it flying across the street into another one. Deadinsky continues to walk down the street.",
-				"0": "Deadinsky swings his foot at the puppy, and there's a distinct squeek as it is punted across the street. It was a decoy... Deadinsky is saddened by this development.",
-				"-1": "Deadinsky swings his foot at the puppy, and there's a distinct squeek as his foot smacks into it. The decoy puppy then bounces back on the bungie that ties it to the nearby lampost and smacks into Deadinsky's face. The pain and letdown sting.",
-				"-2": "Deadinsky swings his foot at the puppy, and there's the distinct sound of metal scraping against metal. The trapdoor under where the decoy puppy was opens and dead plummets into the water below. When he wakes next, he is still wet and missing his wallet again.",
-			}
-		}, 
-		{
-			setup: "A puppy steps outside a coffee shop and finds Deadinsky66 there staring down at him. The puppy sets its coffee down on the sidewalk next to the door.",
-			win_score: 2,
-			lose_score: 0,
-			payoff: {
-				"2": "Deadinsky does a flying kick and punts the puppy into the coffee shop, where it pings off three other puppies at a table across the room. He also gently knocks over the puppy's coffee before strolling off.",
-				"1": "Deadinsky fakes left. The puppy falls for it as Deadinsky's foot comes around from the right and knocks it into its coffee. Deadinsky walks away, pleased, while the puppy shakes off the coffee all over itself.",
-				"0": "Deadinsky goes for the kick, but the puppy ducks around behind dead and places a paw on the small of his back. Deadinsky tries to turn to face him several times, but the puppy stays behind dead. Finally Dead turns and spots the puppy escaping. He knocks over its coffee in anger.",
-				"-1": "Deadinsky goes for the grapple, but the puppy catches hold and reverses it. The puppy slams Deadinsky against the wall of the coffee shop. It then goes and picks up its coffee and moves quickly away before Dead can get his bearings again.",
-				"-2": "Deadinsky kicks at the puppy, but the puppy dodges and lands on Dead's face. The puppy then proceeds to punch Dead in the nose so hard, he's knocked out cold. The puppy grabs its coffee and also takes Deadinsky's wallet for good measure.",
-			}
-		}, 
-		{
-			setup: "Deadinsky66 comes around the corner and face-to-face with a giant metal mech standing in the street, towering over him. It is piloted by five puppies wearing 5 different colored jumpsuits.",
-			win_score: 5,
-			lose_score: 0,
-			payoff: {
-				"2": "The mech starts firing as Deadinsky slides between its legs. He quickly ties them together and then, with a kick from the ground, shoves the mech backwards. It staggers, cannot catch itself, and falls over, and explodes. The five puppies blast off, Team Rocket style.",
-				"1": "The mech starts firing as Deadinsky dives back into the alley he came from. The mech follows him in, and Dead comes from above and lands on its head. He takes its head off with a few well-placed kicks, and the mech falls down, blind and beaten.",
-				"0": "The mech starts firing as Deadinsky dives back into the alley he came from. The mech lines up with the alley and continues firing after him, and Dead is forced to continue retreating. He gets away safely.",
-				"-1": "The mech starts firing as Deadinsky goes to dive back into the alley he came from, but the sticky bullets hit his leg, pinning him in the street. The mech lines up and punts him five blocks away, where he manages to escape before any follow up.",
-				"-2": "The mech starts firing sticky inflating balls at Deadinsky, which he isn't fast enough to dodge. He is soon encased in them and loses conciousness as the mech approaches. He next wakes many blocks away, battered, bruised, and missing his wallet again.",
-			}
-		}, 
-		{
-			setup: "Deadinsky66 walks down the street when he is suddenly picked up by his shirt by a puppy in super-puppy garb. The puppy flies high up into the air with Deadinsky.",
-			win_score: 3,
-			lose_score: 0,
-			payoff: {
-				"2": "Deadinsky pulls the Kryptonite he was lucky to have on him and shoves it in the super-pup's muzzle. The super-pup loses his powers and begins falling. Deadinsky kicks off him and does a rolling landing on a nearby skyscraper.",
-				"1": "Deadinsky pulls the Kryptonite he was lucky to have on him and smacks the super-pup's face with it. It reels back, letting go of Deadinsky. Deadinsky manages to do a rolling-landing on a nearby skyscraper. The super-pup comes around for a second go, but Dead ducks out of sight.",
-				"0": "Deadinsky manages to wrestle his way out of the super-pup's grasp and do a rolling-landing on top of a skyscraper nearby. The super-pup come around for another grab, but Deadinsky manages to shoe it away with the Kryptonite he luckily had on him.",
-				"-1": "Deadinsky can't seem to pull out of the super-pup's grasp. It flies high into the sky and then throws Deadinsky down at the ground. Deadinsky manages to slow his fall and aim for a deep lake. He comes out not unharmed and drenched.",
-				"-2": "The superpup flies him up and up. The Space Core floats by. Then the pup flips him over and starts speeding towards the earth. Deadinsky passes out on the way down from the G-forces. He wakes to find himself in the middle of a crater and without his wallet again.",
-			}
-		},
-		{
-			setup: "Deadinsky66 is sitting in an outdoor cafe, reading quietly. There are puppies two tables down who are keeping their distance, but Dead hadn't taken notice. Suddenly, a car comes around the corner on two wheels. Five puppies inside the car lean out and open fire on the cafe and Deadinsky.",
-			win_score: 5,
-			lose_score: 3,
-			payoff: {
-				"2": "Deadinsky upturns his table for cover as the bullets destory the cafe's porch around him. The bullets destroy the table of puppies. Dead throws a grenade in front of the car, and the car blows sky high, sending the puppies inside flying. Dead escapes the scene unharmed, as the puppy ambulence arrives.",
-				"1": "Deadinsky upturns his table for cover as the bullets destory the cafe's porch area and tear up the table the other puppies were at. Deadinsky throws a grenade at the car and it blows the back off it, but manages to get away. Deadinsky walks away from the scene unharmed.",
-				"0": "Deadinsky upturns his table for cover as the bullets destroy the cafe's porch area and tear up the table the other puppies were at. Deadinsky manages to dodge most of the bullets, but he's still hit. Deadinsky limps away from the scene. Lotid magic will heal his superficial wounds.",
-				"-1": "Deadinsky upturns his table for cover, but the bullets destory the cafe's porch area, and he's injured. The puppies who were at the table nearby fare none better. Deadinsky drags himself away from the scene. Lotid magic will heal him, but he lost that fight.",
-				"-2": "Deadinsky dives for cover, but there is no cover from the volley of hundreds of bullets, which tears up the entire patio. When Deadinsky awakens next, the puppy ambulence is pulling away with the puppies that were at the table nearby, and possibly his wallet, which was missing again.",
-			}
-		}, 
-		{
-			setup: "Deadinsky66 strolls down the street when suddenly the sidewalk in front of him shoots up to block his way. He turns to see a puppy shift its footing, and rocks come up from the ground and float around it.",
-			win_score: 3,
-			lose_score: 0,
-			payoff: {
-				"2": "The earthbending puppy fires the rocks at Deadinsky, who dodges them by flipping sideways. Deadinsky lands next to the puppy and, before it could retaliate, Dead tases the puppy with his handheld taser. He then kicks the puppy down the street.",
-				"1": "The earthbending puppy fires the rocks at Deadinsky, who barely dodges them. The puppy opens a rift in the ground, but Dead is in the air with a flying kick. The puppy changes stance to counter, but is too late and Dead's foot connects with its muzzle. It sails down the steet as Dead dusts himself off.",
-				"0": "The earthbending puppy fires the rocks at Deadinsky, who dodges them sideways. He dives around more thrown rocks and down an alleyway and up a catwalk. The puppy continues to throw stones and attempt to crush him, but Dead is long gone within a few minutes.",
-				"-1": "The earthbending puppy stares Deadinsky down, the spiky rocks floating around it. Dead goes to dive at the puppy with a taser, but the puppy shifts its weight slightly and suddenly Deadinsky is in a painful split. The puppy summons three spikes of land to punt Deadinsky several blocks away.",
-				"-2": "The earthbending puppy stares Deadinsky down, the spiky rocks floating around it. Dead goes for his handheld taser, but the puppy shifts its stance and suddenly Deadinsky is neck-deep in the ground, the contents of his pocket flung around him. The puppy takes his wallet, again, and scampers happily away.",
-			}
-		}, 
-		{
-			setup: "Deadinsky66 is waiting at a bus stop when a sudden blast of fire shoots past his face. He dodges backwards to see the blast of fire came from a puppy's paw. The firebending puppy changes stance, and fire spits out its muzzle in anger.",
-			win_score: 2,
-			lose_score: 0,
-			payoff: {
-				"2": "Deadinsky dodges a few blasts of fire bent in his direction and does a summersault over the puppy. He lands and, before the puppy can react, Dead shoves his handheld taser into the puppy's spine. It collapses, and Dead punts it down the street.",
-				"1": "Deadinsky feints past a few blasts of fire bent in his direction and deflects a punch of fire aimed at his face. He then shoves his handheld taser into the puppy's spine, and punts the unconcious pup down the street.",
-				"0": "The puppy does a roundhouse kick and blasts some more fire in Deadinsky's direction, which he barely dodges. He spots the bus coming and rushes towards it. A blast of fire bounces off the bus as Dead dives inside and the driver floors it at Dead's insistance.",
-				"-1": "The puppy punches fire at Deadinsky as he dodges as best he can. But the punches come too quickly and he's soon surrounded by a ring of fire. The puppy then bends then bends the fire into a flaming whirlwind and rockets Deadinsky into the sky.",
-				"-2": "The puppy does a lengthy dance, calling fire to surround Deadinsky before Dead could get away. It then bends the fire into a whirlwind that rockets Deadinsky straight into the side of a building. When dead wakes again, his clothes are charred and his wallet is missing again.",
-			}
-		}, 
-		{
-			setup: "Deadinsky66 is strolling through the park when he comes across a puppy meditating under a tree. It had a strange blue arrow painted across its back and ending at its head. Like any puppy, he decides to kick it.",
-			win_score: 1,
-			lose_score: 0,
-			payoff: {
-				"2": "Deadinsky punts the puppy up into the air, but the puppy stops itself in midair. Deadinsky can hear it crying and vowing revenge as it flew away on the wind.",
-				"1": "Deadinsky's foot connects with the puppy's cheek, and the puppy takes that energy and rolls away from him. It paws its cheek in anger and, grabbing a branch, slaps a wave of wind at Deadinsky. Deadinsky stands his ground against the gust, but when he looks back, the puppy had gone.",
-				"0": "When Deadinsky goes to kick the meditating puppy, it effortlessly dodges on the wind, without even opening its eyes. He kicks again, but it dodges again. He kicks a third time, but it leaps up on the air given off by the swing of his foot and bounces up the tree, away from him.",
-				"-1": "When Deadinsky goes to kick the meditating puppy, it effortlessly dodge and leaves Deadinsky off-balance. It lands on top of Dead and continues meditating. Dead goes to shove it off, but it dodges again and lands on a ball of air, balancing on one paw, a short distance away. Dead tries once more to kick it, but it rolls merrily away. ",
-				"-2": "When Deadinsky goes to kick the meditating puppy, a blast of wind comes from behind and knocks Deadinsky down, the puppy tripping him. Deadinsky looks up to see the puppy balancing on one paw on a ball of air, with his wallet floating around it. Dead goes to grab his wallet back, but the puppy rides merrily away on the air scooter.",
-			}
-		}, 
-		//TODO insert waterbender here
-		
-		/*
-		{
-			setup: "",
-			win_score: 2,
-			lose_score: 0,
-			payoff: {
-				"2": "",
-				"1": "",
-				"0": "",
-				"-1": "",
-				"-2": "",
-			}
-		}, 
-		*/
-	];
-	
-	function performShowdown() {
-		// select a random showdown:
-		var showdown = showdownText[Math.floor(Math.random() * showdownText.length)];
-		
-		var dead_successes = 0, pup_successes = 0;
-		var dead_dice = [], pup_dice = [];
-		var dead_pool = 5, pup_pool = 5; //start with 5 dice in the pool and explode 6's
-		
-		for (var i = 0; i < dead_pool; i++) {
-			var die = Math.ceil(Math.random()*6);
-			if (die >= 4) dead_successes++;
-			if (die == 6) dead_pool++;
-			dead_dice.push( __wrapDieColor(die) );
-		}
-		for (var i = 0; i < pup_pool; i++) {
-			var die = Math.ceil(Math.random()*6);
-			if (die >= 4) pup_successes++;
-			if (die == 6) pup_pool++;
-			pup_dice.push( __wrapDieColor(die) );
-		}
-		
-		var result = dead_successes - pup_successes;
-		var crit_dead = "", crit_pup = "";
-		if (result >= 4) { //dead won critically
-			result = 2; 
-			state.puppy_score_dead += showdown.win_score*2;
-			crit_dead = irccolors.codes.cyan+"[CRIT] "+irccolors.codes.reset;
-		} 
-		else if (result <= -4) { //dead lost critically
-			result = -2; 
-			state.puppy_score_puppy += showdown.win_score*2;
-			crit_pup = irccolors.codes.cyan+"[CRIT] "+irccolors.codes.reset;
-		}
-		else if (result > 0) { //dead won
-			result = 1; 
-			state.puppy_score_dead += showdown.win_score;
-			state.puppy_score_puppy += showdown.lose_score;
-		}
-		else if (result < 0) { //dead lost
-			result = -1; 
-			state.puppy_score_dead += showdown.lose_score;
-			state.puppy_score_puppy += showdown.win_score;
-		} 
-		else { //tie
-			result = 0; 
-			state.puppy_score_dead += showdown.lose_score;
-			state.puppy_score_puppy += showdown.lose_score;
-		}
-		
-		bot.say("#tppleague", showdown.setup);
-		bot.say("#tppleague", 
-			"Roll off: Deadinsky ["+dead_dice.join(" ")+"] = "+dead_successes+" Successes "+crit_dead
-			+"VS Puppies ["+pup_dice.join(" ")+"] = "+pup_successes+" Successes"+crit_pup);
-		bot.say("#tppleague", showdown.payoff[result]);
-		return;
-		
-		function __wrapDieColor(num) {
-			if (num == 4) return irccolors.codes.dark_red+num+irccolors.codes.reset;
-			if (num == 5) return irccolors.codes.dark_red+num+irccolors.codes.reset;
-			if (num == 6) return irccolors.codes.dark_red+'\u0002'+num+irccolors.codes.reset;
-			return ""+num;
-		}
+cmds.push({
+	cmd : /^ckick/i,
+	run : function(nick, text, res) {
+		const catrevenge = [
+			"the cat wraps around "+nick+"'s leg and scratches it violently.",
+			"the cat dodges and jumps onto "+nick+"'s face.",
+			"misses, and the cat trips "+nick+" instead.",
+			"is instead crushed by a sudden army of cats HALO jumping in from above.",
+			nick+" slips hard on the cat's squeeky toy and falls in the cat's litterbox.",
+			"the cat springs into the air and claws "+nick+" in the face before the kick connects.",
+			"the cat is a bastard and simply doesn't let it happen.",
+		];
+		var cr = catrevenge[Math.floor(Math.random() * catrevenge.length)];
+		bot.say("#tppleague", nick+" goes to kick a cat, but "+cr);
 	}
-	
-	// state.puppy_score_puppy = 0;
-	// state.puppy_score_dead += 100;
-	
+});
+
+(function(){
 	cmds.push({
 		cmd : /^(pscore|dscore|pkick score(board)?|dkick score(board)?)/i,
-		run : function(nick, text, res) {
-			if (state.puppy_score_dead > 66 && state.puppy_score_dead < 77) {
-				bot.say("#tppleague", "Deadinsky: 66+"+(state.puppy_score_dead-66)+", Puppies: "+state.puppy_score_puppy);
-			} else {
-				bot.say("#tppleague", "Deadinsky: "+state.puppy_score_dead+", Puppies: "+state.puppy_score_puppy);
-			}
-		},
+		run : require("./pkick").cmds.pscore,
 	});
 	
 	cmds.push({
 		cmd : /^pkick showdowntest/i,
 		run : function(nick, text, res) {
 			if (nick == "tustin2121" || nick == "tustin2121_work") {
-				performShowdown();
+				require("./pkick").cmds.performShowdown();
 			}
 			return; //this is my test command
 		},
 	});
 	
-	const CHANCE_SHOWDOWN = 0.10;
-	const CHANCE_PUPNADO = 0.03;
-	const CHANCE_DOZEN = 0.02;
-	const CHANCE_PUPWIN = 0.30;
-	
 	cmds.push({
-		cmd : /^pkick$/i,
-		run : function(nick, text, res) {
-			// Only do showdowns if Deadinsky is around
-			if (state.puppy && Math.random() < CHANCE_SHOWDOWN) {
-				performShowdown();
-				return;
-			}
-			
-			var rand = Math.random();
-			
-			if (state.puppy
-				&& state.puppy_score_dead > 30
-				&& state.puppy_score_puppy + 45 < state.puppy_score_dead 
-				&& rand < CHANCE_PUPNADO) 
-			{
-				// If deadinsky out-strips the puppies score by more than half, and 5% of the time
-				var scorejump = Math.round((state.puppy_score_dead - state.puppy_score_puppy) * ((Math.random() * 0.2) + 0.9));
-				// Increase the puppies' score by the difference between the scores, +/- 10%
-				bot.say("#tppleague", "Deadinsky66 is walking down the road on an abnormally calm day. "
-					+"It is several minutes before he notices the low rumbling sound all around him... "
-					+"He looks behind him, and a look of terror strikes his face. "
-					+"He turns and starts sprinting away as fast as he can. But there is no way he "
-					+"can outrun it. The pupnado is soon upon him....");
-				
-				state.puppy_score_puppy += scorejump;
-				return;
-			}
-			
-			if (rand < CHANCE_DOZEN) {
-				var num = Math.round((Math.random()*8)+8);
-				
-				if (/^(dead|mobile)insky/i.test(nick)) {
-					bot.say("#tppleague", (num<12?"Almost a dozen":"Over a dozen")+
-						" puppies suddenly fall from the sky onto "+nick+" and curbstomp him.");
-					state.puppy_score_puppy += num;
-					return;
-				}
-				if (state.puppy) {
-					bot.say("#tppleague", nick+" watches as "+(num<12?"maybe":"over")+
-						" a dozen puppies spring from nowhere and ambush Deadinsky, beating him to the curb.");
-					state.puppy_score_puppy += num;
-				} else {
-					bot.say("#tppleague", nick+" goes to kick a puppy on Deadinsky's behalf, "+
-						"but instead gets ganged up on by "+(num<12?"nearly":"over")+" a dozen puppies.");
-				}
-				
-			} else if (rand > 1-CHANCE_DOZEN) {
-				var num = Math.round((Math.random()*5)+8);
-				
-				if (/^(dead|mobile)insky/i.test(nick)) {
-					bot.say("#tppleague", nick+" comes across a dog carrier with about a dozen"+
-						" puppies inside. He overturns the whole box with his foot!");
-					state.puppy_score_dead += num;
-					return;
-				}
-				if (state.puppy) {
-					bot.say("#tppleague", nick+" watches as Deadinsky punts a dog carrier. "+(num<12?"Maybe":"Over")+
-						" a dozen puppies run in terror from the overturned box.");
-					state.puppy_score_dead += num;
-				} else {
-					bot.say("#tppleague", nick+" kicks a puppy on Deadinsky's behalf. "+
-						"The pup flies into a nearby dog carrier with "+(num<12?"nearly":"over")+" a dozen puppies inside and knocks it over.");
-				}
-				
-			} else if (rand < CHANCE_PUPWIN) {
-				if (/^(dead|mobile)insky/i.test(nick)) {
-					bot.say("#tppleague", "A puppy kicks "+nick);
-					state.puppy_score_puppy++;
-					return;
-				}
-				if (state.puppy) {
-					bot.say("#tppleague", nick+" watches as a puppy kicks Deadinsky's ass.");
-					state.puppy_score_puppy++;
-				} else {
-					bot.say("#tppleague", nick+" goes to kick a puppy on Deadinsky's behalf, but instead the puppy dodges it and kicks "+nick+".");
-				}
-			} else {
-				if (/^(dead|mobile)insky/i.test(nick)) {
-					bot.say("#tppleague", nick+" kicks a puppy.");
-					state.puppy_score_dead++;
-					return;
-				}
-				if (state.puppy) {
-					bot.say("#tppleague", nick+" watches as Deadinsky kicks a puppy.");
-					state.puppy_score_dead++;
-				} else {
-					bot.say("#tppleague", nick+" kicks a puppy on Deadinsky's behalf.");
-				}
-			}
-		},
+		cmd : /^pkick/i,
+		run : require("./pkick").cmds.pkick,
 	});
 	
 	cmds.push({
-		cmd : /^dkick$/i,
-		run : function(nick, text, res) {
-			// Only do showdowns if Deadinsky is around
-			if (state.puppy && Math.random() < CHANCE_SHOWDOWN) {
-				performShowdown();
-				return;
-			}
-			
-			var rand = Math.random();
-			
-			if (state.puppy 
-				&& state.puppy_score_dead > 30
-				&& state.puppy_score_puppy * 2 < state.puppy_score_dead 
-				&& rand < CHANCE_PUPNADO) 
-			{
-				// If deadinsky out-strips the puppies score by more than half, and 5% of the time
-				var scorejump = Math.round((state.puppy_score_dead - state.puppy_score_puppy) * ((Math.random() * 0.2) + 0.9));
-				// Increase the puppies' score by the difference between the scores, +/- 10%
-				bot.say("#tppleague", "Deadinsky66 is walking down the road on an abnormally calm day. "
-					+"It is several minutes before he notices the low rumbling sound all around him..."
-					+"He looks behind him, and a look of terror strikes his face. "
-					+"He turns and starts sprinting away as fast as he can. But there is no way he "
-					+"can outrun it. The pupnado is soon upon him....");
-				
-				state.puppy_score_puppy += scorejump;
-				return;
-			}
-			
-			if (rand < CHANCE_DOZEN) {
-				var num = Math.round((Math.random()*8)+8);
-				
-				if (/^(dead|mobile)insky/i.test(nick)) {
-					bot.say("#tppleague", (num<12?"Almost a dozen":"Over a dozen")+
-						" puppies suddenly fall from the sky onto "+nick+" and curbstomp him.");
-					state.puppy_score_puppy += num;
-					return;
-				}
-				if (state.puppy) {
-					bot.say("#tppleague", nick+" cheers as "+(num<12?"maybe":"over")+
-						" a dozen puppies spring from nowhere and ambush Deadinsky, beating him to the curb.");
-					state.puppy_score_puppy += num;
-				} else {
-					bot.say("#tppleague", nick+" goes to kick a Deadinsky on puppy's behalf, "+
-						"but instead gets ganged up on by "+(num<12?"nearly":"over")+" a dozen Deadinsky's.");
-				}
-				
-			} else if (rand > 1-CHANCE_DOZEN) {
-				var num = Math.round((Math.random()*5)+8);
-				
-				if (/^(dead|mobile)insky/i.test(nick)) {
-					bot.say("#tppleague", nick+" comes across a dog carrier with about a dozen"+
-						" puppies inside. He overturns the whole box with his foot!");
-					state.puppy_score_dead += num;
-					return;
-				}
-				if (state.puppy) {
-					bot.say("#tppleague", nick+" gawks as Deadinsky punts a dog carrier. "+(num<12?"Maybe":"Over")+
-						" a dozen puppies run in terror from the overturned box.");
-					state.puppy_score_dead += num;
-				} else {
-					bot.say("#tppleague", nick+" kicks a Deadinsky on puppy's behalf. "+
-						"The Deadinsky flies into a nearby dog carrier with "+(num<12?"nearly":"over")+" a dozen Deadinskys inside and knocks it over.");
-				}
-				
-			} else if (rand < CHANCE_PUPWIN) {
-				if (/^(dead|mobile)insky/i.test(nick)) {
-					bot.say("#tppleague", "A puppy kicks "+nick);
-					state.puppy_score_puppy++;
-					return;
-				}
-				if (state.puppy) {
-					bot.say("#tppleague", nick+" cheers as a puppy kicks Deadinsky's ass.");
-					state.puppy_score_puppy++;
-				} else {
-					bot.say("#tppleague", nick+" goes to kick a Deadinsky on puppy's behalf, but instead the Deadinsky dodges it and kicks "+nick+".");
-				}
-			} else {
-				if (/^(dead|mobile)insky/i.test(nick)) {
-					bot.say("#tppleague", nick+" kicks a puppy.");
-					state.puppy_score_dead++;
-					return;
-				}
-				if (state.puppy) {
-					bot.say("#tppleague", nick+" watches, appalled, as Deadinsky kicks a puppy.");
-					state.puppy_score_dead++;
-				} else {
-					bot.say("#tppleague", nick+" kicks a Deadinsky on puppy's behalf.");
-				}
-			}
-		},
+		cmd : /^dkick/i,
+		run : require("./pkick").cmds.dkick,
 	});
-	
 
 })();
 
-cmds.push({
-	cmd : /^(rip|no)doof/i,
-	run : function(nick, text, res) {
-		if (!state.friendly) return;
-		bot.say("#tppleague", "rip DoofBot");
-	}
-});
-
-cmds.push({
-	cmd : /^(rip|no)doot/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", "rip DootBot");
-	}
-});
-
-cmds.push({
-	cmd : /^(rip|no)yay/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", "rip YayBot");
-	}
-});
-
-cmds.push({
-	cmd : /^(rip|no)q20/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", "But... I'm still here... ;_;");
-	}
-});
-
-
-cmds.push({
-	cmd : /^rimshot/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", "badum tish!");
-	}
-});
-
-cmds.push({
-	cmd : /^question/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", "question> dodged");
-	}
-});
-
-cmds.push({
-	cmd : /^ohmy/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", "http://replygif.net/i/1381.gif");
-	}
-});
-
-cmds.push({
-	cmd : /^(the|gta)joke/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", "http://i.imgur.com/57XwvAX.gif");
-	}
-});
-
-cmds.push({
-	cmd : /^damn/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", "\"Damn\" - Deadinsky66 2014");
-	}
-});
-
-cmds.push({
-	cmd : /^virtualboy/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague",  '"ALL HAIL THE VIRTUAL BOY" - Satoru Iwata 2014');
-	}
-});
-
-cmds.push({
-	cmd : /^oppression/i,
-	run : function(nick, text, res) {
-		if (!state.friendly) return;
-		bot.say("#tppleague", '"NO MORE OPPRESSION!" - Deadinsky66 2015');
-	}
-});
-
-cmds.push({
-	cmd : /^(howto|howdo)/i,
-	run : function(nick, text, res) {
-		if (!state.friendly) return;
-		bot.say("#tppleague", '"Very carefully." - Iwamiger 2014');
-	}
-});
-
-cmds.push({
-	cmd : /^zombiebox$/i,
-	run : function(nick, text, res) {
-//		if (!state.friendly) return;
-		bot.say("#tppleague", '"Life\'s like a box of zombies. You never know when you\'re gonna get bit" - Abyll 2015');
-	}
-});
-
-cmds.push({
-	cmd : /^quotebot$/i,
-	run : function(nick, text, res) {
-//		if (!state.friendly) return;
-		bot.say("#tppleague", '"Reminder i Run the Quote Bot and anyone who tries to copy that should get the fuck out" - Leoyns 2015');
-	}
-});
-
-cmds.push({
-	cmd : /^defeat/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", '"Hello my name is defeat, I know you recognize me, Just when you think you can win, I\'ll drag you back down again, \'Til you lost all belief" - DoofBot 2015');
-	}
-});
-
-cmds.push({
-	cmd : /^botstuff/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", '"This bot stuff is getting silly." --Dootbot 2015');
-	}
-});
-
-cmds.push({
-	cmd : /^wtf/i,
-	run : function(nick, text, res) {
-		if (!state.wtf_count) state.wtf_count = Math.floor(Math.random() * 5256) + 485;
-		bot.say("#tppleague", '"wtf"-Liria_10 20XX (Count: '+state.wtf_count+')');
-	}
-});
-
-cmds.push({
-	cmd : /^xyzzy/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", '\u001D'+'A hollow voice says, "Fool!"'+'\u000f');
-	}
-});
-
-
-cmds.push({
-	cmd : /^quiznos/i,
-	run : function(nick, text, res) {
-		if (!state.friendly) return;
-		if (nick == "Poomph") {
-			bot.say("#tppleague", '"I bet you\'re the type of fuck nigga who eats at Quizno\'s" - Anonymous 20XX');
-			return;
+(function(){
+	const kickdict = {
+		"a": "an apple",
+		"b": "a ball",
+		"c": "a cat", //covered
+		"d": "a Deadinsky", //covered
+		"e": ["an ELF. BORT", "an email off", "the internet"],
+		"f": ["a fruit basket", "a flygon. Cyander is sad"],
+		"g": "the ground",
+		"h": "a hipster",
+		"i": "an iPhone",
+		"j": "a jar",
+		"k": "a Kappa",
+		"l": "a linoone. Cyander is sad",
+		"m": "a mega stone",
+		"n": "a noun",
+		"o": "it into overdrive",
+		"p": "a puppy", //covered
+		"q": "a bot. Ow, wtf?",
+		"r": "a rutabaga",
+		"s": ["a bag of salt", "a bag of PJSalt"],
+		"t": "a large trout",
+		"u": "an umbrella. It opens",
+		"v": "a Vista machine",
+		"w": "a wall",
+		"x": "a xylaphone. It makes a nice sound",
+		"y": "the question",
+		"z": "a zygote",
+		"π": "a pie. Mmmmmmm, pie..",
+		" ": "the air",
+		"\\": "Shulk",
+		"/": "the root directory",
+		">": "this sentence",
+		"<": "him/herself",
+		"^": "the person above",
+		"!": "a whole bunch in excitement",
+		"¡": "a spanish country",
+		"¿": "a spanish country in a hesitant manner",
+		"@": ["kicks off an email", "a channel op"],
+		"#": "a pound of bacon",
+		"*": "and swears",
+		"~": ["the home directory", "approximately"],
+		//'"': "some quotes around",
+		"…": "Claw",
+		".": "the point",
+		"|": "or punches",
+		"⊕": "or punches, but not both",
+		"⊻": "or punches, but not both",
+		"&": "and punches",
+		";": "a vase; the vase falls over and breaks",
+		":": "someone in the colon",
+		"©": "Mickey Mouse",
+		"$": "some money back to the good old boys",
+		"×": "math",
+		"+": ["math", "a voiced chat member"],
+		"-": "math",
+		"÷": "math. Boo math",
+		"%": "and wraps around to hit him/herself",
+		"_": ["C++", "C"],
+		"±": "within the margin of error",
+		"∓": "within the margin or error",
+		"·": "a bullet out of the air",
+		"ü": "an Uber car",
+		"é": "a pokémon",
+		"1": "one time",
+		"2": "two times. Wow, Double Kick",
+		"3": "three times",
+		"4": "4chan",
+		"5": "five times",
+		"6": "six times, and proceeds to do the can-can",
+		"7": "seven times",
+		"8": "eight. eight. eight. eight. eight. eight. eight. whatever this eight game is",
+		"9": "nine. Nine times. [thunderclap] Ah ah ah ah",
+		"0": "... well, actually doesn't kick at all",
+	};
+	cmds.push({
+		cmd : /^(.)kick/i,
+		run : function(nick, text, res) {
+			var char = res[1].toLowerCase();
+			if (char == "¬") {
+				bot.say("#tppleague",  nick+" does not kick.");
+				return;
+			}
+			if (char == "♫") {
+				bot.say("#tppleague",  nick+' dance riots!');
+				return;
+			}
+			if (char == "=") {
+				bot.say("#tppleague",  nick+' assigns the constant "kick" to the variable "!".');
+				return;
+			}
+			if (char == "™") {
+				bot.say("#tppleague",  nick+" Kicks™.");
+				return;
+			}
+			if (char == "?") {
+				bot.say("#tppleague", "kick: ¯\\(°_o)/¯ Presumably what you're doing");
+				return;
+			}
+			var item = kickdict[char];
+			if (!item) { return; }
+			if (_.isArray(item)) {
+				var ki = item[Math.floor(Math.random() * item.length)];
+				bot.say("#tppleague", nick+" kicks "+ki+".");
+				return;
+			}
+			bot.say("#tppleague", nick+" kicks "+item+".");
 		}
-		bot.say("#tppleague", '"I bet you eat at quiznos, bitch" -Aquawave 2014');
-	}
-});
-
-cmds.push({
-	cmd : /^plagueinc/i,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", '"I was playing Plague Inc and when I searched for plagues nothing '+
-			"showed up, it linked me to the Silph CEO\'s room where he asked me if I had consulted "+
-			'the helix fossil. On the back wall of his office was a portrait of the Villager praising Helix." --Iwamiger 2014');
-	}
-});
-
+	});
+})();
 
 cmds.push({
 	cmd : /^askdome/i,
@@ -1313,13 +1000,70 @@ cmds.push({
 	},
 });
 
-cmds.push({
-	cmd : /^settle/i,
-	run : function(){
-		if (!state.friendly) return;
-		bot.say("#tppleague", '"Settle it in smash!" - Poomph 2014')
-	},
-});
+(function(){
+	var blacklist = [ "fly", "rely", "reply", "ply", "july", "ally" ];
+	
+	var englishpls = {
+		"unduly" : "undo",
+		"wily" : "why",
+		"only" : "own",
+		"truly" : "true",
+		"duly" : "due",
+		"folly" : "fall",
+		"family" : "fama",
+		"doubly" : "double",
+		"fiscally" : "fiscal",
+		// "possibly" : "possible",
+	};
+	
+	var xemote = {
+		"gay" : "KappaPride",
+		"sad" : "BibleThump",
+		"serious" : "BigBrother",
+		"furious" : "SwiftRage",
+		"angry" : "SwiftRage",
+		"greedy" : "tppPokeyen",
+		"fearful" : "WutFace",
+		"double" : "MingLee MingLee",
+	};
+	
+	cmds.push({
+		cmd : /^(lee|ly)$/i, // /^(lee|ly) ?([a-zA-Z]+)?/i,
+		run : function(nick, text, res) {
+			try {
+				var lee = (state.lastLyWord || "basically").toLowerCase();
+				if (blacklist.indexOf(lee) > -1) lee = "basically";
+				if (lee.length > 42) {
+					bot.action("#tppleague", "slaps azum4roll around a bit with a large trout.");
+					return;
+				}
+				
+				if (englishpls[lee]) {
+					lee = englishpls[lee]
+				} else {
+					var r = /([a-zA-Z]+?)(cal|i|ul)?ly$/i.exec(lee);
+					if (!r) return; //ignore all words that don't end in "ly"
+					if (r[2]) {
+						switch( r[2].toLowerCase() ) {
+							case "cal": lee = r[1]+"c"; break;
+							case "i": lee = r[1]+"y"; break;
+							case "ul": lee = r[1]+"ull"; break;
+						}
+					} else {
+						lee = r[1];
+					}
+				}
+				
+				var em = xemote[lee] || "MingLee";
+				bot.say("#tppleague", "MingLee " + lee.toUpperCase() + " LEE " + em);
+				state.lastLyWord = null;
+			} catch (e) {
+				console.log("ERROR in LEE command!", e.stack);
+				bot.say("#tppleague", "MingLee FATAL LEE BibleThump");
+			}
+		},
+	});
+})();
 
 cmds.push({
 	cmd : /^fix(.+)/i,
@@ -1330,6 +1074,7 @@ cmds.push({
 		var botname = "bot,";
 		switch (res[1]) {
 			case "doot":	creator = "TieSoul"; break;
+			case "pika":	creator = "PikalaxALT"; break;
 			case "q20":		creator = "Tustin"; break;
 			case "doof": 	creator = "Leonys"; break;
 			case "yay": 	creator = "xfix"; break;
@@ -1359,5 +1104,257 @@ cmds.push({
 		bot.say("#tppleague", "2nukelist: "+state.nukelist.join(", "));
 	}
 });
+
+////////// Quotes ///////////
+
+function q(cmd, quote) {
+	if (typeof quote == "string") {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			bot.say("#tppleague", quote);
+		} });
+	} else if (_.isArray(quote)) {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
+		} });
+	}
+}
+
+function dq(cmd, quote) {
+	if (typeof quote == "string") {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			if (!state.friendly) return;
+			bot.say("#tppleague", quote);
+		} });
+	} else if (_.isArray(quote)) {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			if (!state.friendly) return;
+			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
+		} });
+	}
+}
+
+dq(/^(rip|no)doof/i, "rip DoofBot");
+q(/^(rip|no)doot/i, "rip DootBot");
+q(/^(rip|no)yay/i, "rip YayBot");
+q(/^(rip|no)q20/i, "But... I'm still here... ;_;");
+q(/^rimshot/i, "badum tish!");
+q(/^question/i, "question> dodged");
+q(/^ohmy/i, "http://replygif.net/i/1381.gif");
+q(/^(the|gta(the)?)joke/i, "http://i.imgur.com/pcs7Q9J.gif");
+q(/^damn/i, '"Damn" - Deadinsky66 2014');
+q(/^virtualboy/i, '"ALL HAIL THE VIRTUAL BOY" - Satoru Iwata 2014');
+dq(/^oppression/i, '"NO MORE OPPRESSION!" - Deadinsky66 2015');
+
+dq(/^norespect/i, '"And not a single F was given." - Abyll 2015');
+dq(/^bunker/i, '"C\'EST MON BUNKER" - Liria_10 2014');
+q(/^(fuckyou|asshole)/i, '"And you\'re calling me an asshole for that? Fuck you." - Streamer 2015');
+
+dq(/^streamer/i, [
+	'"eat ****" - Streamer 2015',
+	'"And you\'re calling me an asshole for that? Fuck you." - Streamer 2015',
+	'"how do blind people supposed to know they can cross the road?" --Streamer 2015',
+	'"because some people clearly lack social skills: guests need to show their host proper respect or they won\'t be guests any more" --Streamer 2016',
+	'"N64 music is ***. just reminding everyone of that fact again" --Streamer 2015',
+]);
+dq(/^freedom/i, [
+	'"SHOW THEM THE TRUE PATRIOT YOU ARE BY BUYING CONDOMS THAT LOOK LIKE OBAMA" - Aquawave 2014',
+	'"Eat a freedom dick!" - airow99 2015',
+]);
+
+dq(/^singapore/i, '"I live in Singapore, bitch." - ColeWalski 2014');
+dq(/^fuel/i, '"THANKS FOR THE FUEL, DICK" - ColeWalski 2014');
+dq(/^aipom(s)/i, '"SCREW THE AIPOMS" - ColeWalski 2014');
+dq(/^swinub/i, '"WHY DID WE NOT SWINUB BLIZZARD FOR VENUSAUR" - Xerkxes95 2015');
+dq(/^deadcat/i, '"I HAVE A WIFE BUT I WANT TO FUCK THIS DEAD CAT."- Aquawave 2014');
+dq(/^(deadwife|alivecat)/i, '"I HAVE A CAT BUT I WANT TO FUCK THIS DEAD WIFE!"- Aquawave 2014');
+
+dq(/^wifi/i, '"Wi-Fi is so evil that it won\'t let me do anything ;-;" - HazorEx 2014');
+dq(/^dced/i, '"dang it dced again" - ColeWalski 2014');
+
+dq(/^how(to|do|does)/i, '"Very carefully." - Iwamiger 2014');
+q(/^(to|do|does)how/i, '"Carefully, very." - Migeriwa 1420');
+
+dq(/^zombiebox$/i, '"Life\'s like a box of zombies. You never know when you\'re gonna get bit" - Abyll 2015');
+dq(/^because/i, '"Because I\'m a lawyer" - Mantis 2014');
+dq(/^asssparks/i, '"does it have anything to do with the sparks flying out of its ass and neck?" - Tusitn2121 2014');
+dq(/^ignoredrule/i, '"Please remember to not abuse!" - Leonys, 2014');
+dq(/^settle/i, '"Settle it in smash!" - Poomph 2014');
+dq(/^cyander/i, '"make me a quote damnit ;-;" - Cyander 2015');
+
+dq(/^boo/i, [
+	'"pouet" - Boolerex 2014',
+	'"hue" - Boolerex 2014',
+	'"scrub" - Boolerex 2014',
+]);
+
+dq(/^quiznos/i, [
+	'"I bet you\'re the type of fuck nigga who eats at Quizno\'s" - Anonymous 20XX',
+	'"I bet you eat at quiznos, bitch" -Aquawave 2014',
+]);
+
+cmds.push({
+	cmd : /^(rood|rude)/i,
+	run : function(nick, text, res) {
+		if (!state.friendly) return;
+		bot.say("#tppleague", '"rood zinzolin gorm bronius giallo ryoku ghetsis" - '
+			+nick+' '+(new Date(Date.now()).getFullYear()));
+	}
+});
+
+cmds.push({
+	cmd : /^cape ?(.*)?/i,
+	run : function(nick, text, res) {
+		if (!state.friendly) return;
+		var cape = res[1] || "cape";
+		bot.say("#tppleague", '"Fuck my '+cape+'. Bye '+cape+'!" - Queen Elsa 2015');
+	}
+});
+
+cmds.push({
+	cmd : /^tslap (.*)/i,
+	run : function(nick, text, res) {
+		if (!state.friendly) return;
+		var sl = res[1].trim();
+		if (sl.length > 128) sl = nick;
+		bot.action("#tppleague", "slaps "+sl+" around a bit with a large trout.");
+	}
+});
+
+// Rejected Doofbot Commands
+
+dq(/^ass/i, "I'll leave the handling of Solareon's ass to DoofBot, if you don't mind...");
+q(/^(pioxmiefic|traininghard)/i, 'DansGame');
+
+// Quotebot
+q(/^quotebot$/i, '"Reminder i Run the Quote Bot and anyone who tries to copy that should get the fuck out" - Leoyns 2015');
+q(/^(fools|idiots)\!?/i, '"Im surrounded by those of questionable knowledge." - DootBot 2015');
+q(/^(sentient)/i, 'https://tppleague.me/irc/2015-12-13T03:00#id78415163');
+
+q(/^2014/i, [
+	'"Apparently we don\'t have any quotes for 2014..." - Tustn2121 2016'
+]);
+dq(/^2015/i, [
+	'"We do need a 2015 quote." - Poomph 2015',
+	'"I volunteer to have a 2015 quote." - airow99 2015',
+	'"we need a 2015 quote" - MihiraTheTiger 2015',
+]);
+q(/^2016/i, [
+	'"Time to plot your 2016 quotes. Keepo" - Soma_Ghost 2016',
+	'"I just wanted the first 2016 quote BibleThump" - Pokson 2016',
+	'"and I need 2016 quote tustin2121 BabyRage" - sohippy 2016',
+]);
+
+q(/^defeat/i, '"Hello my name is defeat, I know you recognize me, Just when you think you can win, I\'ll drag you back down again, \'Til you lost all belief" - DoofBot 2015');
+q(/^botstuff/i, '"This bot stuff is getting silly." --Dootbot 2015');
+q(/^blind/i, '"how do blind people supposed to know they can cross the road?" --Streamer 2015');
+q(/^(notesticles|noballs|notahero)/i, '"I am not a hero, just a man with no testicles" --/u/Military_SS 2015');
+q(/^xyzzy/i, '\u001D'+'A hollow voice says, "Fool!"'+'\u000f');
+q(/^(tpp)?quit(t?ing)?sim/i, "http://pastebin.com/mJPXR74G");
+q(/^(illogical|tharja)/i, '"her skin is illogical, her boobs are illogical, she doesn\'t make sense" --AOMRocks20 2016');
+q(/^(these|breasts)/i, '"Have you ever seen a good little girl with THESE before?!?!!" - Mihira 2016');
+q(/^tas/i, '"How many frame perfect inputs can you do on two controllers at once?" --TASbot 2016');
+q(/^savi/i, '"Praise our Lord and Savi" - ProjectRevoTPP 2016');
+q(/^ech/i, '"Actually, the <input> snaps in two" - JonTron 20xx');
+
+q(/^haiku/i, "a haiku about bots, by TieSoul: "+
+	"Doot is not yet fixed, "+
+	"because I am too lazy, "+
+	"where the fuck is doof?");
+
+cmds.push({
+	cmd : /^wtf/i,
+	run : function(nick, text, res) {
+		if (!state.wtf_count) state.wtf_count = Math.floor(Math.random() * 5256) + 485;
+		bot.say("#tppleague", '"wtf"-Liria_10 20XX (Count: '+state.wtf_count+')');
+	}
+});
+
+cmds.push({
+	cmd : /^requestquote (\![a-zA-z0-9]+) (.*)/i,
+	run : function(nick, text, res) {
+		if (res[0].length > 400) return; //ignore superlong requests
+		if (res[1] == state.lastQuoteRequested) return;
+		if (/hftf/i.test(nick)) return; //ignore certain users who spam this WAY too much...
+		
+		bot.say("#TPPTableTop", "Quote request from "+nick+" <"+res[1]+"> "+res[2]);
+		bot.say("#tppleague", "Noted.");
+		state.lastQuoteRequested = res[1];
+		state.lastQuoteRequestor = nick;
+	}
+});
+
+(function(){
+	var praisedex = {
+		"helix": [ '༼ つ ◕_◕ ༽つPRAISE HELIX༼ つ ◕_◕ ༽つ' ],
+		"streamer": [
+			"Notice me Streamer-Senpai BibleThump",
+			'"how do blind people supposed to know they can cross the road?" --Streamer 2015',
+			'"And you\'re calling me an asshole for that? Fuck you." - Streamer 2015',
+		],
+		"arceus": "streamer",
+		
+		"deku": [
+			"BANHAMMERED!", "wow Deku OneHand",
+		],
+		"3dsstreamer": "deku",
+		
+		"twitchspeaks": [
+			"ヽ༼ຈل͜ຈ༽ﾉ THE BLACK GUY HAS BEEN FIXED ヽ༼ຈل͜ຈ༽ﾉ",
+		],
+		
+		"rayquaza": [
+			"( ͡° ͜ʖ ͡°) COME RAYQUAZA, BLACK AS NIGHT!",
+		],
+		"timeout": "timeout",
+	};
+	
+	cmds.push({
+		cmd : /^praise(.*)?/i,
+		run : function(nick, text, res) {
+			if (!state.friendly) return;
+			
+			var loopSafe = 0;
+			var item = res[1] || "helix";
+			do {
+				item = praisedex[item];
+				loopSafe++; 
+				if (loopSafe > 100) {
+					bot.say("#tppleague", "Timed out."); return;
+				}
+			} while (item !== undefined && !_.isArray(item));
+			
+			if (!item) {
+				bot.say("#tppleague", '༼ つ ◕_◕ ༽つPRAISE༼ つ ◕_◕ ༽つ');
+			} else {
+				var i;
+				bot.say("#tppleague", item[i = Math.floor(Math.random()*item.length)]);
+				// console.log("rnd",i,"length",item.length)
+			}
+		}
+	});
+})();
+
+q(/^quilava/i, [
+	"Quilava <3 http://25.media.tumblr.com/tumblr_m2y3fwJvIp1r29nmno1_1280.jpg", //Quilava fighting a Joltic
+	"Quilava <3 http://orig12.deviantart.net/736b/f/2013/230/3/9/quilava_by_haychel-d6is5we.jpg", //Quilava fighting pose
+	"Quilava <3 http://pre03.deviantart.net/556f/th/pre/i/2013/208/9/c/quilava_playing_with_a_pokeball_by_tropiking-d6ffpu6.png", //Quilava with pokeball
+	"Quilava <3 http://orig12.deviantart.net/8d43/f/2013/349/5/d/pokeddexy_07__quilava_by_saital-d6y4u4c.png", //Quilava in the rain
+	"Quilava <3 http://pre11.deviantart.net/b767/th/pre/i/2014/134/0/e/i_don_t_want_go_back_to_poke_ball____by_ffxazq-d7hyhp5.jpg", //Don't want to go into pokeball
+	"Quilava <3 http://img14.deviantart.net/32f8/i/2014/098/f/b/quilava_background_by_rinnai_rai-d7dpu2n.png", //Quilava overdose
+	"Quilava <3 http://orig15.deviantart.net/1aed/f/2014/082/2/1/exbo_by_nexeron-d7bbcnu.png", //ExboTheQuilava
+	"Quilava <3 http://orig01.deviantart.net/fae2/f/2012/364/b/5/quilava_by_ieaka-d5pqu98.png", //Curled up
+	"Quilava <3 http://orig05.deviantart.net/efe3/f/2012/131/5/0/quilava_by_sirnorm-d4zc40n.png", //Volcano BG
+	"Quilava <3 http://img01.deviantart.net/eace/i/2015/113/f/6/fire_loves_ice_by_dreamynormy-d5ps06w.png", //Fire and Ice
+	"Quilava <3 http://pre05.deviantart.net/5b79/th/pre/f/2014/243/6/e/devin_and_lightphire__pmdte_fanart__by_speedboosttorchic-d7xhpya.png", //Blue fire
+	"Quilava <3 http://img03.deviantart.net/4a05/i/2013/238/0/8/quilava_s_in_love____by_yoko_uzumaki-d6jsn21.png", //Two Quilavas
+	"Quilava <3 http://img03.deviantart.net/0922/i/2013/153/5/4/more_cuddling_x3_by_rikuaoshi-d67k2gn.jpg", //Quilava and Lioone
+]);
+
+q(/^plagueinc/i, '"I was playing Plague Inc and when I searched for plagues nothing '+
+	"showed up, it linked me to the Silph CEO\'s room where he asked me if I had consulted "+
+	'the helix fossil. On the back wall of his office was a portrait of the Villager praising Helix." --Iwamiger 2014');
+
+
+
 
 

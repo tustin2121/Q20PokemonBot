@@ -36,6 +36,7 @@ var Game = require("./qmods/game");
 var pm = require("./qmods/pm-handler");
 var info = require("./qmods/dbinfo");
 var friendly = require("./qmods/friendly");
+var pkick = require("./qmods/pkick");
 var identify = require("./qmods/identify");
 var cmdline = require("./qmods/cmdline");
 var monitor = require("./qmods/monitor");
@@ -351,6 +352,7 @@ bot.addListener("pm_reload", function(nick, modulename){
 friendly.setup();
 identify.setup();
 monitor.setup();
+pkick.setup();
 // poketext.setup();
 
 ///////// Functions ///////////
@@ -424,6 +426,21 @@ function reloadModule(from, name){
 			friendly.migrate(_old);
 			
 			bot.emit("module-reloaded", "friendly");
+			sayLog(from, "Reload completed successfully.");
+			break;
+		
+		case "pkick":
+			sayLog(from, "Attempting to reload pkick module.");
+			
+			if (!__reloadFile(from, "./qmods/pkick")) return;
+			
+			var _old = pkick;
+			pkick.teardown();
+			pkick = require("./qmods/pkick");
+			pkick.setup();
+			pkick.migrate(_old);
+			
+			bot.emit("module-reloaded", "pkick");
 			sayLog(from, "Reload completed successfully.");
 			break;
 		

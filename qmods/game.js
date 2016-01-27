@@ -238,6 +238,11 @@ extend(Game.prototype, {
 		if ((res = /^(?:begin|start|new) ?(?:game|pokemon)? ?\b(.*)/i.exec(text))) {
 			// bot.notice(from, "Channels: "+BANNED_CHANNELS.join(","));
 			// bot.notice(from, "Channel: "+this.channel);
+			if (this.channel == "#tppleague" && require("./friendly").state.modmode) {
+				// Mod Mode
+				bot.notice(from, "I am currently being 'responsible' in this channel. Please go elsewhere to play the game.");
+				return;
+			}
 			if (BANNED_CHANNELS.indexOf(this.channel) > -1) {
 				// Blanket Ban
 				bot.notice(from, "I do not have permission to start a game on this channel."+NOPERM_MSG);

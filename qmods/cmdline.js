@@ -78,13 +78,14 @@ cmds.push({ //Command to reload modules
 cmds.push({ //Attempts to restore the bot's nickname.
 	cmd: /^(?:renick)/i,
 	run: function(text) {
+		bot.send("NICKSERV", "GHOST", "q20pokemonbot");
 		console.log("Sending a nick change request.");
 		bot.emit("re-nick");
 	}
 });
 
 cmds.push({
-	cmd: /^join (\#\#?\w+)/i,
+	cmd: /^join (\#\#?[\w#]+)/i,
 	run: function(text, res) {
 		console.log("Joining '"+res[1]+"'.");
 		bot.join(res[1]);
@@ -92,7 +93,7 @@ cmds.push({
 });
 
 cmds.push({
-	cmd: /^(?:part|leave) (\#\#?\w+)/i,
+	cmd: /^(?:part|leave) (\#\#?[\w#]+)/i,
 	run: function(text, res) {
 		console.log("Parting '"+res[1]+"'.");
 		if (currChans[text] && currChans[text].forceQuit)
@@ -130,14 +131,17 @@ cmds.push({
 });
 
 cmds.push({
-	cmd: /^(?:hi|hello|status|stat)/,
-	run: function() {
-		//Trim off clear screen, cursor move before printing to main terminal
-		var s = monitor.state.currMonitor;
-		var i = s.indexOf("=");
-		s = s.substr(i);
-		console.log(s);
-	},
+	cmd: /^(send|dc) ([\w\d]+) ([\w\d]+) (.*)/i,
+	run: function(text, res) {
+		bot.send(res[2], res[3], res[4]);
+	}
+});
+
+cmds.push({
+	cmd: /^sayl (.*)/i,
+	run: function(text, res) {
+		bot.say("#tppleague", res[1]);
+	}
 });
 
 cmds.push({
@@ -155,6 +159,38 @@ cmds.push({
 				break;
 		}
 	}
+});
+
+cmds.push({
+	cmd: /^resetTVTropes/i,
+	run: function(text, res) {
+		require("./identify").state.tv_tropes_timeout = null;
+		bot.action("#tppleague", "is forcefully fished out of the bowels of TV Tropes by Tustin!");
+		console.log("forcefully fished out of the bowels of TV Tropes by Tustin!");
+	}
+})
+
+cmds.push({
+	cmd: /^(?:hi|hello|status|stat)/,
+	run: function() {
+		//Trim off clear screen, cursor move before printing to main terminal
+		var s = monitor.state.currMonitor;
+		var i = s.indexOf("=");
+		s = s.substr(i);
+		console.log(s);
+	},
+});
+
+cmds.push({
+	cmd : /^friendly ?(true|false)?/i,
+	run : function(text, res){
+		if (!res[1]) {
+			console.log((require("./friendly").state.friendly)?"true":"false");
+		} else {
+			require("./friendly").state.friendly = (res[1] == "true")? true : false;
+			console.log("State set to", require("./friendly").state.friendly);
+		}
+	},
 });
 
 cmds.push({
@@ -495,7 +531,10 @@ cmds.push({
 			user = identify.memory.users[hashid] = nuser;
 		}
 		if (_.isObject(user)) {
-			user.lastSeen = new Date().toUTCString();
+			if (user.lastSeen === undefined) //define with 1970 first
+				user.lastSeen = new Date(0).toUTCString();
+			else
+				user.lastSeen = new Date().toUTCString();
 		}
 		
 		console.log(util.inspect(user));
@@ -536,11 +575,36 @@ cmds.push({
 	cmd: /^id (?:clean)/i,
 	run: function(text, res) {
 		var users = identify.memory.users;
-		var uc = 0, ic = 0, cc = 0, nc = 0, hc = 0, pc = 0;
+		var uc = 0, uu = 0, ic = 0, cc = 0, nc = 0, hc = 0, pc = 0;
 		
 		for (var u in users) {
 			if (!users[u]) {
 				delete users[u]; uc++;
+				continue;
+			}
+			
+			var user = users[u];
+			
+			if (typeof(user) == "string") {
+				// Convert to object
+				var nuser = {
+					name: user,
+				};
+				user = users[u] = nuser;
+				uu++;
+			}
+			if (_.isArray(user)) {
+				// Convert to object
+				var nuser = {
+					name: user[0],
+					notes: user.slice(1),
+				};
+				user = users[u] = nuser;
+				uu++;
+			}
+			if (_.isObject(user)) {
+				if (user.lastSeen === undefined) //define with 1970 first
+					user.lastSeen = new Date(0).toUTCString();
 			}
 		}
 		
@@ -591,6 +655,7 @@ cmds.push({
 		console.log("  "+nc+" ownerless namekey");
 		console.log("  "+hc+" ownerless hostkey");
 		console.log("  "+pc+" ownerless userhostkey");
+		console.log("Made "+uu+" user entries into proper objects");
 	}
 });
 
