@@ -54,6 +54,8 @@ var state = module.exports.state = {
 	nextActiveWarn: 0,
 	lastPC: 0,
 	pokeballs: 0,
+	
+	lastWildInfo : null,
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -137,8 +139,10 @@ function reportEvent(text, to) {
 }
 
 var cmds = [];
-function processPoketext(nick, text) {
+function processPoketext(nick, text, _msg) {
 	safely(function(){
+		// If I fuck up again and name a variable "nick" below, this saves it...
+		if (!nick) nick = _msg.nick; 
 		
 		// Commands entrypoint
 		if (text.indexOf("!") == 0) {
@@ -146,7 +150,7 @@ function processPoketext(nick, text) {
 				var res = null;
 				var txt = text.substr(1);
 				for (var i = 0; i < cmds.length; i++) {
-					if (res = cmds[i].cmd.exec(txt)) {
+					if ((res = cmds[i].cmd.exec(txt))) {
 						cmds[i].run(nick, text, res);
 						return;
 					}
@@ -161,28 +165,138 @@ function processPoketext(nick, text) {
 		state.nextActiveWarn = currMillis + ACTIVE_TIMEOUT;
 		state.lastActiveWarn = state.lastActive = currMillis;
 		
-		if (/released outside/.test(text)) {
+		{ // Wild Pokemon Tracking
+			var res;
+			if ((res = /Wild (\w+) appeared!(?: (?:.*)\[EnLvl: ?(\d+), EnGend: ([^\]]+)\])?/i.exec(text))) {
+				state.lastWildInfo = {
+					pkmn: res[1],
+					lvl: res[2],
+					gen: res[3],
+				};
+				return;
+			}
+			
+			if ((res = /Gotcha! ([^ ]+) was caught!/i.exec(text))) {
+				if (state.lastWildInfo.pkmn == res[1]) {
+					
+					res = /(\d+)d(\d+)h(\d+)m/i.exec(text);
+					state.lastWildInfo.time = res[1]+"d "+res[2]+"h "+res[3]+"m";
+					
+					res = /used the (\w+) BALL/i.exec(text);
+					state.lastWildInfo.ball = res[1];
+				}
+				return;
+			}
+			
+			if ((res = /([^ ]+) was sent to BILL's PC/.exec(text))) {
+				if (state.lastWildInfo) {
+					var wi = state.lastWildInfo; 
+					state.lastWildInfo = null;
+					var pName = res[1];
+					
+					var rp = "[CATCH] ";
+					if (wi.time) {
+						rp += wi.time+" ";
+					} else {
+						res = /(\d+)d(\d+)h(\d+)m/i.exec(text);
+						rp += res[1]+"d "+res[2]+"h "+res[3]+"m ";
+					}
+					
+					rp += '\u0002\u000312';
+					rp += "Caught a "+wi.gen+" Lv. "+wi.lvl+" "+wi.pkmn+"! ";
+					rp += '\u000f';
+					if (wi.pkmn == pName) {
+						rp += "No nickname.";
+					} else {
+						rp += "nname: `"+pName+"`";
+					}
+					
+					if (wi.ball) {
+						rp += " [Ball: "+wi.ball+"]";
+					}
+					reportEvent(rp, NORMAL_REPORT);
+				} else {
+					reportEvent('\u0002'+colors.wrap("light_blue", text), NORMAL_REPORT);
+				}
+				return;
+			}
+		}
+		
+		
+		// PC Usage!
+		// if (/released outside/.test(text)) { //Release in Red
+		if (/Release(d)? (ᵖᵐ|PkMn)|Bye, (.*)!/.test(text)) { //Release in Crystal
 			// For some reason, the "bold" color puts an extraneous 16 at the start.
 			reportEvent('\u0002'+colors.wrap("light_red", text), ALERT_REPORT);
 			return;
 		}
-		if (/was stored in|taken out\. Got/.test(text)) {
+		//if (/was stored in|taken out\. Got/.test(text)) { //Withdraw, Deposit in Red
+		if (/Stored ([\w\d]+)!|Got (?!away)([\w\d]+)!/.test(text)) { //Withdraw, Deposit in Crystal
 			reportEvent(text, NORMAL_REPORT);
 			return;
 		}
-		if (/turned on the PC/.test(text)) {
+		if (/Deposited|Withdrew/.test(text)) { //Withdraw, Deposit in Crystal
+			reportEvent(text, DEBUG_REPORT);
+			return;
+		}
+		if (/turned on the PC/.test(text)) { //PC is now on
 			if (state.lastPC + PC_TIMEOUT < currMillis) {
 				reportEvent(text, ALERT_REPORT);
 			}
 			state.lastPC = currMillis;
 			return;	
 		}
+		
+		// Name Selection!
+		if (/are you ready?/.test(text)) {
+			reportEvent(text, NORMAL_REPORT);
+			return;
+		}
+		
+		// Item/Pokemon Acquisition
+		if (/recieved (.*)!/.test(text)) { //Given
+			reportEvent(text, NORMAL_REPORT);
+			return;
+		}
+		if (/phone number|registered (\w+)'s number/.test(text)) { //Phone numbers
+			reportEvent(text, NORMAL_REPORT);
+			return;
+		}
+		if (/in the \w+ POCKET/i.test(text)) { //Finding items
+			reportEvent(text, DEBUG_REPORT);
+			return;
+		}
+		if (/Threw away/i.test(text)) { //Tossing items
+			reportEvent(text, DEBUG_REPORT);
+			return;
+		}
+		if (/will be .\d+\./i.test(text)) { //Buying
+			reportEvent(text, DEBUG_REPORT);
+			return;
+		}
+		if (/Made (.*) hold|Took (.*) from/.test(text)) { //Held items
+			reportEvent(text, DEBUG_REPORT);
+			return;
+		}
+		if (/used the/i.test(text)) { //Using items in battle?
+			reportEvent(text, DEBUG_REPORT);
+			return;
+		}
+		
+		
 		if (/(blacked|whited) out/.test(text)) {
 			reportEvent(text, NORMAL_REPORT);
 			return;
 		}
-		if (/was caught|was transferred to/.test(text)) {
-			reportEvent(text, NORMAL_REPORT);
+		if (/Ok, may I see your POK.MON?/i.test(text)) { // Healing
+			reportEvent(text, DEBUG_REPORT);
+			return;
+		}
+		
+		
+		// if (/was caught|was transferred to/.test(text)) {
+		if (/was caught|sent to BILL's PC/.test(text)) {
+			reportEvent('\u0002'+colors.wrap("light_blue", text), NORMAL_REPORT);
 			return;
 		}
 		if (/New POK.DEX data will be added/.test(text)) {
@@ -191,6 +305,10 @@ function processPoketext(nick, text) {
 		}
 		if (/MASTER ?BALL/i.test(text)) {
 			reportEvent('\u0002'+colors.wrap("light_red", text), ALERT_REPORT);
+			return;
+		}
+		if (/grew to level [\d]{2}/.test(text)) { //Level up
+			reportEvent(text, DEBUG_REPORT);
 			return;
 		}
 		if (/grew to level [\d]{3}/.test(text)) { //level 100! (and beyond?!)
@@ -217,6 +335,18 @@ function processPoketext(nick, text) {
 }
 
 cmds.push({
+	cmd : /^(ping)/i,
+	run : function(nick, text, res){
+		bot.say("#poketext", "Pong:"
+			+" poketextjoined="+state.poketextJoined
+			+" lastActive="+state.lastActive
+			+" lastPC="+state.lastPC
+			+" lastWild="+(require("util").inspect(state.lastWildInfo)) 
+		);
+	},
+});
+
+cmds.push({
 	cmd : /^reset/i,
 	run : function(nick, text, res){
 		var currMillis = new Date().getTime();
@@ -230,7 +360,7 @@ cmds.push({
 });
 
 cmds.push({
-	cmd : /^(shh|quiet)/i,
+	cmd : /^(shh|ssh|quiet)/i,
 	run : function(nick, text, res){
 		state.poketextJoined = false;
 		

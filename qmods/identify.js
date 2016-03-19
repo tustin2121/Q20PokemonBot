@@ -29,6 +29,7 @@ module.exports = {
 		bot.addListener("join#tppleague", joinCheck);
 		bot.addListener("join##tppleague#id", opAuthorized);
 		bot.addListener("message##tppleague#id", chatmessage);
+		bot.addListener("error", errmsg);
 		// bot.addListener("raw", debugRaw);
 		
 		setTimeout(function(){
@@ -49,6 +50,7 @@ module.exports = {
 		bot.removeListener("join#tppleague", joinCheck);
 		bot.removeListener("join##tppleague#id", opAuthorized);
 		bot.removeListener("message##tppleague#id", chatmessage);
+		bot.removeListener("error", errmsg);
 		// bot.removeListener("raw", debugRaw);
 		
 		clearInterval(savetimer);
@@ -504,6 +506,12 @@ function chatmessage(nick, text, msg) {
 	});
 }
 
+function errmsg(msg) {
+	if (msg.command == "err_cannotsendtochan" && msg.args[1] == INFOCHAN) {
+		bot.say("ChanServ", "op "+INFOCHAN+" "+bot.nick);
+	}
+}
+
 cmds.push({
 	cmd : /^learn ([^ ]+) (.*)/i,
 	run : function(nick, text, res){
@@ -561,4 +569,11 @@ cmds.push({
 			});
 		});
 	},
+});
+
+cmds.push({
+	cmd : /^whois.*/i,
+	run : function(nick, text, res){
+		bot.say(INFOCHAN, "Use !whois <nick> <storedName>");
+	}
 });

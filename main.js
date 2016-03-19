@@ -26,6 +26,8 @@ var bot = global.bot = new irc.Client(config.server, config.desiredNick, {
 	// secure: true,
 	// debug: true,
 	retryDelay: 10000, //10 seconds
+	floodProtection: true,
+	floodProtectionDelay: 500,
 });
 
 
@@ -40,7 +42,7 @@ var pkick = require("./qmods/pkick");
 var identify = require("./qmods/identify");
 var cmdline = require("./qmods/cmdline");
 var monitor = require("./qmods/monitor");
-var poketext;// = require("./qmods/poketext");
+var poketext = require("./qmods/poketext");
 
 // Game.prototype.say = function(txt){
 // 	bot.say(this.channel, txt);
@@ -353,7 +355,7 @@ friendly.setup();
 identify.setup();
 monitor.setup();
 pkick.setup();
-// poketext.setup();
+if (poketext) poketext.setup();
 
 ///////// Functions ///////////
 
@@ -537,12 +539,19 @@ function parseChannelMessage(from, to, text) {
 
 function __connectionComplete() {
 	log("  ----- Connected ----- ");
-	bot.join(config.channel);
 	
-	bot.join("#tppleague");
-	bot.join("##tppleague#id"); //Q20Bot is owner of this channel
-	// bot.join("#poketext");
-	bot.join("#playq20");
+	bot.say("NickServ", "IDENTIFY "+require("../password").nick+" "+require("../password").password);
+	
+	setTimeoutSafely(function(){
+		bot.join(config.channel);
+		bot.join("##tppleague#id"); //Q20Bot is owner of this channel
+	}, 1000);
+	
+	setTimeoutSafely(function(){
+		bot.join("#tppleague");
+		bot.join("#playq20");
+		bot.join("#poketext");
+	}, 2000);
 	
 	__setupTimeout(); //sets up a new ping timeout responder
 }

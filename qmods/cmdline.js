@@ -78,7 +78,7 @@ cmds.push({ //Command to reload modules
 cmds.push({ //Attempts to restore the bot's nickname.
 	cmd: /^(?:renick)/i,
 	run: function(text) {
-		bot.send("NICKSERV", "GHOST", "q20pokemonbot");
+		bot.say("NickServ", "GHOST q20pokemonbot "+require("../../password").password);
 		console.log("Sending a nick change request.");
 		bot.emit("re-nick");
 	}
@@ -134,6 +134,13 @@ cmds.push({
 	cmd: /^(send|dc) ([\w\d]+) ([\w\d]+) (.*)/i,
 	run: function(text, res) {
 		bot.send(res[2], res[3], res[4]);
+	}
+});
+
+cmds.push({
+	cmd: /^sayto ([\w\d]+) (.*)/i,
+	run: function(text, res) {
+		bot.say(res[1], res[2]);
 	}
 });
 

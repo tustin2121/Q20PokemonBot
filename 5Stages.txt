@@ -1,0 +1,100 @@
+<POKETEXT> 25d06h18m08s — [[xxxxoxᵖᵏz was sent to BILL's PC. [ xxxxoxᵖᵏz was sent to BILL's PC.
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+<tustin2121> oh
+<tustin2121> well then
+<POKETEXT> 25d06h18m30s — Wild KOFFING appeared! Go! KENYA! [EnLvl: 70, EnGend: ♂]
+<POKETEXT> 25d06h18m50s — Enemy KOFFING used DESTINY BOND! Enemy KOFFING's trying to take its opponent with it! KENYA's hurt by its burn! Waiting!
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<POKETEXT> 25d06h19m19s — EVAN used the PREMIER BALL. Shoot! It was so close too! Waiting! Enemy KOFFING used DESTINY BOND! Enemy KOFFING's trying to take its opponent with it! KENYA's hurt by its burn! Waiting! KENYA's hurt by its burn! Got away safely!
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+<POKETEXT> 25d06h20m29s — Wild SLUGMA appeared! Go! KENYA! [EnLvl: 73, EnGend: ♂]
+<POKETEXT> 25d06h20m41s — Waiting! Enemy SLUGMA used ANCIENTPOWER!
+<POKETEXT> 25d06h21m07s — Wild GROWLITHE appeared!
+<POKETEXT> 25d06h21m11s — Go! KENYA!
+<POKETEXT> 25d06h21m23s — Waiting! Enemy GROWLITHE used CRUNCH!
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+<POKETEXT> 25d06h21m55s — I want to be alone for a while.
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<POKETEXT> 25d06h22m37s — Wild WEEZING appeared! Go! KENYA! [EnLvl: 75, EnGend: ♀]
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+<tustin2121> wtf
+<POKETEXT> 25d06h23m21s — Restores PP of all moves by 10.
+<POKETEXT> 25d06h24m39s — I want to be alone for a while.
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<tustin2121> !ssh
+* Q20PokemonBot has quit (Remote host closed the connection)
+<tustin2121> W
+<tustin2121> T
+<tustin2121> F
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<POKETEXT> 25d06h28m03s — Would you like to save the game? SAVING DON'T TURN OFF THE POWER.
+<POKETEXT> 25d06h28m18s — I want to be alone for a while.
+<tustin2121> !shh
+<Q20PokemonBot> Activity timeout warnings quieted until POKETEXT joins or speaks again.
+<tustin2121> wtf
+<POKETEXT> 25d06h29m50s — Press any button to exit.
+<tustin2121> !ping
+<Q20PokemonBot> Pong: poketextjoined=true lastActive=1457666990177 lastPC=0
+<POKETEXT> 25d06h30m40s — Restores PP of all moves by 10.
+<tustin2121> !ping
+<Q20PokemonBot> Pong: poketextjoined=true lastActive=1457667040792 lastPC=0
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+<tustin2121> Some sort of syntax error?
+<POKETEXT> 25d06h31m24s — I want to be alone for a while.
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+<POKETEXT> 25d06h32m51s — Restores PP of all moves by 10.
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<POKETEXT> 25d06h33m18s — Press any button to exit.
+<POKETEXT> 25d06h33m55s — I want to be alone for a while.
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<POKETEXT> 25d06h34m29s — Raises SPECIAL ATTACK. (1 BTL)
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<tustin2121> it's not even my code that's erroring.... NotLikeThis
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+<POKETEXT> 25d06h37m27s — Restores POKéMON HP by 50.
+<POKETEXT> 25d06h37m38s — Press any button to exit.
+<POKETEXT> 25d06h38m25s — Whom do you want to call? You're out of the service area. Whom do you want to call? You're out of the service area. Whom do you want to call? You're out of the service area. Whom do you want to call?
+<POKETEXT> 25d06h38m27s — Press any button to exit.
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+* hytagaway has quit (Quit: http://www.kiwiirc.com/ - A hand crafted IRC client)
+<tustin2121> !ping
+* Q20PokemonBot has quit (Remote host closed the connection)
+* yaycupcake has quit (Read error: Connection reset by peer)
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+* yaycupcake (~yaycupcak@unaffiliated/yaycupcake) has joined
+<tustin2121> !ping
+<POKETEXT> 25d06h40m51s — Restores POKéMON HP by 50.
+<tustin2121> well, it doesn't CRASH anymore, but it still makes no sense what's going on
+<POKETEXT> 25d06h41m10s — Raises SPECIAL ATTACK. (1 BTL)
+<tustin2121> !ssh
+* Q20PokemonBot has quit (Client Quit)
+* Q20PokemonBot (~nodebot@36.22.197.104.bc.googleusercontent.com) has joined
+<POKETEXT> 25d06h42m22s — Press any button to exit.
+<tustin2121> !ping
+<tustin2121> !ping
+* yaycupcake has quit (Read error: Connection reset by peer)
+* yaycupcake (~yaycupcak@unaffiliated/yaycupcake) has joined
+<tustin2121> !ping
+<tustin2121> !ping
+<Q20PokemonBot> Pong: poketextjoined=false lastActive=0 lastPC=0
+<tustin2121> oh, why thank you for finally responding...
+<tustin2121> why the fuck is the nick undefined suddenly in this stupid event handler I don't know...
+* yaycupcakes (~yaycupcak@unaffiliated/yaycupcake) has joined
+* yaycupcake has quit (Read error: Connection reset by peer)
+<tustin2121> OH FOR FUCKs....
+* tustin2121 headdesks
+
+<rena_> the 5 stages of debugging: what? why? how? impossible! oh.

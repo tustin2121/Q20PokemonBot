@@ -148,6 +148,7 @@ function joinCheck(nick, msg){
 		
 		if (/^hftf$/i.test(nick)) return;
 		if (/^CheddarBot$/.test(nick)) return;
+		if (/Discord/i.test(nick)) return;
 		
 		if (/^doofbot$/i.test(nick)) {
 			state.friendly = false;
@@ -402,7 +403,7 @@ function chatmessage(nick, text, msg) {
 		
 		{
 			var res;
-			if ((res = /([a-zA-Z]+ly)/i.exec(text))) {
+			if ((res = /([a-zA-Z]+ly)\b/i.exec(text))) {
 				state.lastLyWord = res[1];
 			}
 		}
@@ -469,6 +470,7 @@ function chatmessage(nick, text, msg) {
 	});
 	
 	if (text.indexOf("!") != 0) return;
+	if (/Discord/i.test(nick)) return; //probably already covered by the bot abuse guard, but idc
 	
 	safely(function(){
 		var now = new Date().getTime();
@@ -1147,19 +1149,26 @@ dq(/^oppression/i, '"NO MORE OPPRESSION!" - Deadinsky66 2015');
 
 dq(/^norespect/i, '"And not a single F was given." - Abyll 2015');
 dq(/^bunker/i, '"C\'EST MON BUNKER" - Liria_10 2014');
-q(/^(fuckyou|asshole)/i, '"And you\'re calling me an asshole for that? Fuck you." - Streamer 2015');
 
+q(/^(fuckyou|asshole)/i, '"And you\'re calling me an asshole for that? Fuck you." - Streamer 2015');
+q(/^ignore/i, '"Yes it\'s all my fault /ignore doesn\'t work as expected. Maybe you should have sucked harder." --Streamer 2016');
 dq(/^streamer/i, [
 	'"eat ****" - Streamer 2015',
 	'"And you\'re calling me an asshole for that? Fuck you." - Streamer 2015',
 	'"how do blind people supposed to know they can cross the road?" --Streamer 2015',
 	'"because some people clearly lack social skills: guests need to show their host proper respect or they won\'t be guests any more" --Streamer 2016',
 	'"N64 music is ***. just reminding everyone of that fact again" --Streamer 2015',
+	'"Yes it\'s all my fault /ignore doesn\'t work as expected. Maybe you should have sucked harder." --Streamer 2016',
+	'"I\'m grumpy in the morning." --Streamer 2016',
+	'"Stupid is going to get mad sometimes, that\'s reality. I\'m opting-out where I can. I don\'t want to get in the habit of wasting my time." --Streamer 2016',
+	'"WHERES THE TIMEER I"M SO OBSERVANT XDXDXDXXXXD" --Streamer 2016',
+	'"SAO is garbage, easily the worst anime I ever tried to watch, why is it recommended so often?" --Streamer 2016'
 ]);
 dq(/^freedom/i, [
 	'"SHOW THEM THE TRUE PATRIOT YOU ARE BY BUYING CONDOMS THAT LOOK LIKE OBAMA" - Aquawave 2014',
 	'"Eat a freedom dick!" - airow99 2015',
 ]);
+q(/^long/i, '"you\'re too long BabyRage" - Iwamiger 2016');
 
 dq(/^singapore/i, '"I live in Singapore, bitch." - ColeWalski 2014');
 dq(/^fuel/i, '"THANKS FOR THE FUEL, DICK" - ColeWalski 2014');
@@ -1255,6 +1264,7 @@ q(/^(these|breasts)/i, '"Have you ever seen a good little girl with THESE before
 q(/^tas/i, '"How many frame perfect inputs can you do on two controllers at once?" --TASbot 2016');
 q(/^savi/i, '"Praise our Lord and Savi" - ProjectRevoTPP 2016');
 q(/^ech/i, '"Actually, the <input> snaps in two" - JonTron 20xx');
+q(/^chat/i, '"chat is so ded that i think soded is so ded to the point dead in sky becomes soded while pinging soded dead in sky changes its name to mobile in sky use your mobile in the sky new meme" - mlz 2016');
 
 q(/^haiku/i, "a haiku about bots, by TieSoul: "+
 	"Doot is not yet fixed, "+

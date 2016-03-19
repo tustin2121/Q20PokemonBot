@@ -36,7 +36,7 @@ const NOPERM_MSG = " Please PM me if you want to play 20 Questions by yourself, 
 const EXAMPLE_QUESTIONS = [
 	"?is it Magikarp?", "?is it Lapras", "?is it Dux?",
 	"?can it have sturdy", "?does it have the ability sand veil", "?could it have the ability volt absorb?",
-	"?is it a fire type", "?is it weak to ice?", "?does it resist water?", "?is it duel typed",
+	"?is it a fire type", "?is it weak to ice?", "?does it resist water?", "?is it dual typed",
 	"?is it part of the eevee family?", "?is it in the ralts evolutionary line",
 	"?can it learn flamethrower", "?can it learn Ice Beam?", "?does it learn trick room",
 	"?is it taller than 2 meters", "?is it shorter than a house?", "?is it smaller than pikachu?",
@@ -175,6 +175,7 @@ extend(Game.prototype, {
 		if (from == this.channel) return false; //don't ban user in his own private game
 		if (!this.localBanList) return false;
 		if (this.localBanList.indexOf(from) > -1) { return true; }
+		if (/^TPPLDiscordBot$/i.test(from)) return true;
 		if (/^hftf$/i.test(from)) return true;
 		return false;
 	},

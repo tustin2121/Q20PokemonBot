@@ -75,7 +75,8 @@ function joinCheck(nick, msg){
 			
 			// bot.say("#tppleague", "Breaking: The Puppy Nation is attempting Peace Talks with Deadinsky, but Deadinsky has not yet responded. More at 11.");
 			// bot.say("#tppleague", "Breaking: Tensions are rising between the Puppy Nation and Deadinsky after the inadvertant reveal of Deadinsky's cloning machine. More at 11.");
-			bot.say("#tppleague", "Breaking: Puppy Nation Officials have claimed that Deadinsky is building WMKs (Weapons of Mass Kicking) and are calling for a declaration of war. More at 11.");
+			// bot.say("#tppleague", "Breaking: Puppy Nation Officials have claimed that Deadinsky is building WMKs (Weapons of Mass Kicking) and are calling for a declaration of war. More at 11.");
+			bot.say("#tppleague", "Breaking: Puppy Protesters outside capital hill oppose going to war with Deadinsky. \"He's only one man! He can't kick us all!\". More at 11.");
 		}
 	});
 }
