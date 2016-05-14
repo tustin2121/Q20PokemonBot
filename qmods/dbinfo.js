@@ -60,7 +60,8 @@ var info = {
 		{ id: 278,	regex: /^(bird ?cop)$/i, }, 
 		{ id: 312,	regex: /^(c3|ccc)$/i, }, 
 		{ id: 346,	regex: /^((lord )?root|potato)$/i, },
-		{ id: 383,	regex: /^kenya+$/i, },		
+		{ id: 383,	regex: /^kenya+$/i, },	
+		{ id: 402,  regex: /^de(le){1,} ?wo{2,}p$/i, },
 		{ id: 403,	regex: /^(sunshine)$/i, },
 		{ id: 407,	regex: /^(sunbrella)$/i, }, 
 		{ id: 483,	regex: /^(dairy queen)$/i, },
@@ -236,19 +237,19 @@ var info = {
 				pkmn.evoLine = rows[0].id;
 				pkmn.evoLength = rows.length;
 				pkmn._possibleMega = (rows[rows.length-1].forms)? rows[rows.length-1].id : 0;
+				
+				if (pkmn._possibleMega) {
+					db.get(
+						"SELECT COUNT(*) as num "+
+						"FROM pokemon_forms "+
+						"JOIN pokemon ON pokemon.id = pokemon_forms.pokemon_id "+
+						"WHERE pokemon.species_id = ? AND pokemon_forms.is_mega == 1;", pkmn._possibleMega,
+					function (err, row) {
+						if (err) throw err;
+						pkmn.hasMegaEvo = row.num; //stores how many mega evolutions!
+					});
+				}
 			});
-			
-			if (pkmn._possibleMega) {
-				db.get(
-					"SELECT COUNT(*) as num "+
-					"FROM pokemon_forms "+
-					"JOIN pokemon ON pokemon.id = pokemon_forms.pokemon_id "+
-					"WHERE pokemon.species_id = ? AND pokemon_forms.is_mega == 1;", pkmn._possibleMega,
-				function (err, row) {
-					if (err) throw err;
-					pkmn.hasMegaEvo = row.num; //stores how many mega evolutions!
-				});
-			}
 			
 			if (!pkmn.forms) {
 				pkmn.type = [];

@@ -131,9 +131,23 @@ cmds.push({
 });
 
 cmds.push({
-	cmd: /^(send|dc) ([\w\d]+) ([\w\d]+) (.*)/i,
+	cmd: /^(send|dc) ([\w\d]+) ([\w\d]+) ([\w\d]+) (.*)/i,
+	run: function(text, res) {
+		bot.send(res[2], res[3], res[4], res[5]);
+	}
+});
+
+cmds.push({
+	cmd: /^(send|dc) ([\w\d]+) ([\w\d]+) ([\w\d]+)/i,
 	run: function(text, res) {
 		bot.send(res[2], res[3], res[4]);
+	}
+});
+
+cmds.push({
+	cmd: /^(send|dc) ([\w\d]+) ([\w\d]+)/i,
+	run: function(text, res) {
+		bot.send(res[2], res[3]);
 	}
 });
 
@@ -167,6 +181,20 @@ cmds.push({
 		}
 	}
 });
+
+cmds.push({
+	cmd: /^commandlist (.*)/i,
+	run: function(text, res) {
+		switch (res[1]) {
+			case "friendly":
+				cmds = require("./friendly").getCmdList()
+				for (var i = 0; i < cmds.length; i++) {
+					console.log(cmds[i].cmd);
+				}
+				break;
+		}
+	}
+})
 
 cmds.push({
 	cmd: /^resetTVTropes/i,

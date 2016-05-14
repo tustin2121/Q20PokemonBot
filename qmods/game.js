@@ -1114,9 +1114,9 @@ Game.fn.parseQuestionFunctions = {
 			var q = "Does it have a mega evolution?";
 			//TODO
 			if (this.pokemon.hasMegaEvo) {
-				return __result("mega", confidence, q, "Yes (as of X/Y).");
+				return __result("mega", confidence, q, "Yes (as of ORAS).");
 			} else {
-				return __result("mega", confidence, q, "No (as of X/Y).");
+				return __result("mega", confidence, q, "No (as of ORAS).");
 			}
 		}
 		if (has) {

@@ -1138,7 +1138,8 @@ function dq(cmd, quote) {
 dq(/^(rip|no)doof/i, "rip DoofBot");
 q(/^(rip|no)doot/i, "rip DootBot");
 q(/^(rip|no)yay/i, "rip YayBot");
-q(/^(rip|no)q20/i, "But... I'm still here... ;_;");
+// q(/^(rip|no)q20/i, "But... I'm still here... ;_;");
+q(/^(rip|no)q20/i, "I'm not currently K-Lined, actually. Keepo");
 q(/^rimshot/i, "badum tish!");
 q(/^question/i, "question> dodged");
 q(/^ohmy/i, "http://replygif.net/i/1381.gif");
@@ -1184,7 +1185,10 @@ dq(/^how(to|do|does)/i, '"Very carefully." - Iwamiger 2014');
 q(/^(to|do|does)how/i, '"Carefully, very." - Migeriwa 1420');
 
 dq(/^zombiebox$/i, '"Life\'s like a box of zombies. You never know when you\'re gonna get bit" - Abyll 2015');
-dq(/^because/i, '"Because I\'m a lawyer" - Mantis 2014');
+dq(/^because/i, [
+	'"Because I\'m a lawyer" - Mantis 2014',
+	'"because i\'m an addict" - CoffeeCtrl 2016'
+]);
 dq(/^asssparks/i, '"does it have anything to do with the sparks flying out of its ass and neck?" - Tusitn2121 2014');
 dq(/^ignoredrule/i, '"Please remember to not abuse!" - Leonys, 2014');
 dq(/^settle/i, '"Settle it in smash!" - Poomph 2014');
@@ -1233,11 +1237,15 @@ cmds.push({
 
 dq(/^ass/i, "I'll leave the handling of Solareon's ass to DoofBot, if you don't mind...");
 q(/^(pioxmiefic|traininghard)/i, 'DansGame');
-
-// Quotebot
 q(/^quotebot$/i, '"Reminder i Run the Quote Bot and anyone who tries to copy that should get the fuck out" - Leoyns 2015');
+
+// Dootbot Quotes
 q(/^(fools|idiots)\!?/i, '"Im surrounded by those of questionable knowledge." - DootBot 2015');
-q(/^(sentient)/i, 'https://tppleague.me/irc/2015-12-13T03:00#id78415163');
+q(/^(sentient)/i, 'https://tppx.herokuapp.com/league/?date=2015-12-13T03:00#id78415163');
+q(/^(tpp|tpppark)?rule1/i, '"tpp park rule 1: don\'t run any countries" --Dootbot 2016');
+q(/^defeat/i, '"Hello my name is defeat, I know you recognize me, Just when you think you can win, I\'ll drag you back down again, \'Til you lost all belief" - DoofBot 2015');
+q(/^botstuff/i, '"This bot stuff is getting silly." --Dootbot 2015');
+q(/^fury/i, '"I will shit fury all over the place." - Dootbot 2016');
 
 q(/^2014/i, [
 	'"Apparently we don\'t have any quotes for 2014..." - Tustn2121 2016'
@@ -1253,8 +1261,6 @@ q(/^2016/i, [
 	'"and I need 2016 quote tustin2121 BabyRage" - sohippy 2016',
 ]);
 
-q(/^defeat/i, '"Hello my name is defeat, I know you recognize me, Just when you think you can win, I\'ll drag you back down again, \'Til you lost all belief" - DoofBot 2015');
-q(/^botstuff/i, '"This bot stuff is getting silly." --Dootbot 2015');
 q(/^blind/i, '"how do blind people supposed to know they can cross the road?" --Streamer 2015');
 q(/^(notesticles|noballs|notahero)/i, '"I am not a hero, just a man with no testicles" --/u/Military_SS 2015');
 q(/^xyzzy/i, '\u001D'+'A hollow voice says, "Fool!"'+'\u000f');

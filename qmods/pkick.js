@@ -36,7 +36,9 @@ var state = module.exports.state = {
     puppy : false,
 	puppy_score_puppy: 0,
 	puppy_score_dead: 0,
+	uranium : 0,
 };
+
 
 ///////////////////////////////////////////////////////////////
 
@@ -44,6 +46,7 @@ const CHANCE_SHOWDOWN = 0.10;
 const CHANCE_PUPNADO = 0.03;
 const CHANCE_DOZEN = 0.02;
 const CHANCE_PUPWIN = 0.30;
+const CHANCE_URANIUM = 0.01;
 
 ////////////////////////// Callbacks /////////////////////////
 
@@ -76,7 +79,23 @@ function joinCheck(nick, msg){
 			// bot.say("#tppleague", "Breaking: The Puppy Nation is attempting Peace Talks with Deadinsky, but Deadinsky has not yet responded. More at 11.");
 			// bot.say("#tppleague", "Breaking: Tensions are rising between the Puppy Nation and Deadinsky after the inadvertant reveal of Deadinsky's cloning machine. More at 11.");
 			// bot.say("#tppleague", "Breaking: Puppy Nation Officials have claimed that Deadinsky is building WMKs (Weapons of Mass Kicking) and are calling for a declaration of war. More at 11.");
-			bot.say("#tppleague", "Breaking: Puppy Protesters outside capital hill oppose going to war with Deadinsky. \"He's only one man! He can't kick us all!\". More at 11.");
+			// bot.say("#tppleague", "Breaking: Puppy Protesters outside capital hill oppose going to war with Deadinsky. \"He's only one man! He can't kick us all!\". More at 11.");
+			if (Math.random() > 0.35) {
+				var str = nick+" walks into the room and ";
+				var quote = [
+					"a bucket falls on his head and two puppies fall down on it and smack it. They run off as Deadinsky gets his bearings.",
+					"a cup of warm coffee flies across the room from a dense group of puppies and beans Deadinsky in the head.",
+					"he steps on a rake with a bone attached to the end of it. It smacks him across the face.",
+					"suddenly a whip creame pie smacks into his face. The puppies in the room scatter.",
+					"a puppies swings from the ceiling, leaps off, and kicks him in the face, before running off.",
+				];
+				str += quote[Math.floor(Math.random()*quote.length)];
+				bot.say("#tppleague", str);
+				state.puppy_score_puppy += 1;
+			} else {
+				bot.say("#tppleague", "As "+nick+" walks into the room, the puppies in the area tense up and turn to face him.");
+			}
+			
 		}
 	});
 }
@@ -95,7 +114,7 @@ function partCheck(nick, msg){
 
 var showdownText = [
 	//payoff: 2 = crit success, 1 = success, 0 = meet, -1 = failure, -2 = crit fail
-	{
+	{ //0
 		setup: "Deadinsky66 turns into an alleyway and is met with five puppies. It looks like they had been waiting for him...",
 		win_score: 4,
 		lose_score: 1,
@@ -107,19 +126,19 @@ var showdownText = [
 			"-2": "Deadinsky turns to run, but there's another group of puppies that have closed in behind him. When he wakes next near the dumpster, he finds himself shoeless and missing his wallet again.",
 		},
 	},
-	{
-		setup: "Deadinsky66 sits in the park, eating a bannana. Unbeknownst to him, a cadre of ninja-puppies is lying in wait in a tree just above him...",
+	{ //1
+		setup: "Deadinsky66 sits in the park, eating a banana. Unbeknownst to him, a cadre of ninja-puppies is lying in wait in a tree just above him...",
 		win_score: 4,
 		lose_score: 0,
 		payoff: {
-			"2": "The hair on the back of Deadinsky's neck stands on end, and he know's he's surrounded moments before the ninja-puppies strike. They attack, but he fends them off effortlessly with his own mod-ninja skills. The bannana and victory were delicious.",
-			"1": "Deadinsky just happens to lean over as the first ninja-puppy makes his strike. The shurikin misses, and deadinsky uses his own mod-ninja abilities to fend off the rest of the clan. His bannana fell into the dirt during the kurfuffle, however.",
-			"0": "Deadinsky goes to take a bite of the bannana when it is cut in half by a shuriken. He scampers as the ninja-puppies fall from the tree and go after him, but he manages to get away unharmed...",
-			"-1": "Deadinsky goes to take a bite of the bannana when it is cut in half by a shuriken. Another shuriken pins his sleeves to the tree. The ninja-puppies decend upon him and knock him out. His bannana is now ant food.",
-			"-2": "Deadinsky goes to take a bite of the bannana when he is knocked out cold from behind by one of the ninja-puppies. When he wakes next in an alleyway, his bannana is smeared all over his shirt, and his wallet was missing again.",
+			"2": "The hair on the back of Deadinsky's neck stands on end, and he know's he's surrounded moments before the ninja-puppies strike. They attack, but he fends them off effortlessly with his own mod-ninja skills. The banana and victory were delicious.",
+			"1": "Deadinsky just happens to lean over as the first ninja-puppy makes his strike. The shurikin misses, and deadinsky uses his own mod-ninja abilities to fend off the rest of the clan. His banana fell into the dirt during the kurfuffle, however.",
+			"0": "Deadinsky goes to take a bite of the banana when it is cut in half by a shuriken. He scampers as the ninja-puppies fall from the tree and go after him, but he manages to get away unharmed...",
+			"-1": "Deadinsky goes to take a bite of the banana when it is cut in half by a shuriken. Another shuriken pins his sleeves to the tree. The ninja-puppies decend upon him and knock him out. His banana is now ant food.",
+			"-2": "Deadinsky goes to take a bite of the banana when he is knocked out cold from behind by one of the ninja-puppies. When he wakes next in an alleyway, his banana is smeared all over his shirt, and his wallet was missing again.",
 		}
 	},
-	{
+	{ //2
 		setup: "Deadinsky66 comes upon a small ragged puppy all alone on the sidewalk. He instinctively goes to kick it.",
 		win_score: 2,
 		lose_score: 0,
@@ -131,7 +150,7 @@ var showdownText = [
 			"-2": "Deadinsky swings his foot at the puppy, and there's the distinct sound of metal scraping against metal. The trapdoor under where the decoy puppy was opens and dead plummets into the water below. When he wakes next, he is still wet and missing his wallet again.",
 		}
 	}, 
-	{
+	{ //3
 		setup: "A puppy steps outside a coffee shop and finds Deadinsky66 there staring down at him. The puppy sets its coffee down on the sidewalk next to the door.",
 		win_score: 2,
 		lose_score: 0,
@@ -143,7 +162,7 @@ var showdownText = [
 			"-2": "Deadinsky kicks at the puppy, but the puppy dodges and lands on Dead's face. The puppy then proceeds to punch Dead in the nose so hard, he's knocked out cold. The puppy grabs its coffee and also takes Deadinsky's wallet for good measure.",
 		}
 	}, 
-	{
+	{ //4
 		setup: "Deadinsky66 comes around the corner and face-to-face with a giant metal mech standing in the street, towering over him. It is piloted by five puppies wearing 5 different colored jumpsuits.",
 		win_score: 5,
 		lose_score: 0,
@@ -155,7 +174,7 @@ var showdownText = [
 			"-2": "The mech starts firing sticky inflating balls at Deadinsky, which he isn't fast enough to dodge. He is soon encased in them and loses conciousness as the mech approaches. He next wakes many blocks away, battered, bruised, and missing his wallet again.",
 		}
 	}, 
-	{
+	{ //5
 		setup: "Deadinsky66 walks down the street when he is suddenly picked up by his shirt by a puppy in super-puppy garb. The puppy flies high up into the air with Deadinsky.",
 		win_score: 3,
 		lose_score: 0,
@@ -167,7 +186,7 @@ var showdownText = [
 			"-2": "The superpup flies him up and up. The Space Core floats by. Then the pup flips him over and starts speeding towards the earth. Deadinsky passes out on the way down from the G-forces. He wakes to find himself in the middle of a crater and without his wallet again.",
 		}
 	},
-	{
+	{ //6
 		setup: "Deadinsky66 is sitting in an outdoor cafe, reading quietly. There are puppies two tables down who are keeping their distance, but Dead hadn't taken notice. Suddenly, a car comes around the corner on two wheels. Five puppies inside the car lean out and open fire on the cafe and Deadinsky.",
 		win_score: 5,
 		lose_score: 3,
@@ -179,7 +198,7 @@ var showdownText = [
 			"-2": "Deadinsky dives for cover, but there is no cover from the volley of hundreds of bullets, which tears up the entire patio. When Deadinsky awakens next, the puppy ambulence is pulling away with the puppies that were at the table nearby, and possibly his wallet, which was missing again.",
 		}
 	}, 
-	{
+	{ //7
 		setup: "Deadinsky66 strolls down the street when suddenly the sidewalk in front of him shoots up to block his way. He turns to see a puppy shift its footing, and rocks come up from the ground and float around it.",
 		win_score: 3,
 		lose_score: 0,
@@ -191,7 +210,7 @@ var showdownText = [
 			"-2": "The earthbending puppy stares Deadinsky down, the spiky rocks floating around it. Dead goes for his handheld taser, but the puppy shifts its stance and suddenly Deadinsky is neck-deep in the ground, the contents of his pocket flung around him. The puppy takes his wallet, again, and scampers happily away.",
 		}
 	}, 
-	{
+	{ //8
 		setup: "Deadinsky66 is waiting at a bus stop when a sudden blast of fire shoots past his face. He dodges backwards to see the blast of fire came from a puppy's paw. The firebending puppy changes stance, and fire spits out its muzzle in anger.",
 		win_score: 2,
 		lose_score: 0,
@@ -203,7 +222,7 @@ var showdownText = [
 			"-2": "The puppy does a lengthy dance, calling fire to surround Deadinsky before Dead could get away. It then bends the fire into a whirlwind that rockets Deadinsky straight into the side of a building. When dead wakes again, his clothes are charred and his wallet is missing again.",
 		}
 	}, 
-	{
+	{ //9
 		setup: "Deadinsky66 is strolling through the park when he comes across a puppy meditating under a tree. It had a strange blue arrow painted across its back and ending at its head. Like any puppy, he decides to kick it.",
 		win_score: 1,
 		lose_score: 0,
@@ -215,7 +234,7 @@ var showdownText = [
 			"-2": "When Deadinsky goes to kick the meditating puppy, a blast of wind comes from behind and knocks Deadinsky down, the puppy tripping him. Deadinsky looks up to see the puppy balancing on one paw on a ball of air, with his wallet floating around it. Dead goes to grab his wallet back, but the puppy rides merrily away on the air scooter.",
 		}
 	}, 
-	{
+	{ //10
 		setup: "Deadinsky66 turns to walk across a bridge when he sees a puppy standing, staring him down, in the middle of the bridge. Deadinsky starts rushing up to kick it, and moments before his foot connects, the puppy bends some water out of river below.",
 		win_score: 2,
 		lose_score: 0,
@@ -227,7 +246,18 @@ var showdownText = [
 			"-2": "Deadinsky doesn't quite react fast enough, and his kick gets absorbed into the floating glob of water the puppy controls. The momentum of the kick transfers through the bent water and smacks Dead sideways into the railing of the bridge. He is pinned to the railing by a rain of icicles. When he wakes next, he find himself on the river's shoreline and his wallet is missing again.",
 		}
 	}, 
-	//TODO insert waterbender here
+	{ //11
+		setup: "Deadinsky66 walks through the center of town when he is stopped by 5 teenage puppies. As he watches, they perform strange movements with their arms and, with some background explosions, suddenly have color-coded suits and helmets on. They charge at Deadinsky.",
+		win_score: 10,
+		lose_score: 0,
+		payoff: {
+			"2": "Suddenly, a strange staff slams into the ground next to Deadinsky, and he's suddenly as tall as the buildings around him. He kicks all 5 puppies with ease and also a couple buildings as well before he returns to normal size.",
+			"1": "Deadinsky faces them head on and begins flipping around them and smacking them against walls and trees. The puppies lose their suits inexplicably as they fall, and soon he is standing over all of them, gloating. Then he kicks them across the city center.",
+			"0": "Deadinsky backflips away from them and begins running. They fly at him and perform martial arts moves, but before they can reach him, a squad of gray dudes looking vaguly like Deadinsky get between him and the puppies. They hold them off, and Dead gets away.",
+			"-1": "Deadinsky turns to run, but the five puppies surround him quickly. He attempts to fend off their martial arts attacks, to no avail. Soon, they perform a power attack and Deadinsky falls over and inexplicable explosions erupt around him as the teenage puppies pose.",
+			"-2": "Deadinsky turns to run, but finds his way blocked by a giant mech foot. The teenage puppies jump inprobably high into the mech and proceed to kick him clear across town. when he wakes again, he finds himself in a pile of rubble and his wallet missing again.",
+		}
+	}, 
 	
 	/*
 	{
@@ -245,9 +275,10 @@ var showdownText = [
 	*/
 ];
 
-function performShowdown() {
+function performShowdown(forcedNum) {
 	// select a random showdown:
 	var showdown = showdownText[Math.floor(Math.random() * showdownText.length)];
+	if (forcedNum) { showdown = showdownText[forcedNum]; }
 	
 	var dead_successes = 0, pup_successes = 0;
 	var dead_dice = [], pup_dice = [];
@@ -328,6 +359,12 @@ function pkick(nick, text, res) {
 		performShowdown();
 		return;
 	}
+	
+	// if (state.puppy && (/^(dead|mobile)insky/i.test(nick)) && Math.random() < CHANCE_URANIUM) {
+	// 	bot.say("#tppleague", nick+" finds some Kikatanium lying on the ground, and pockets it.");
+	// 	state.uranium++;
+	// 	return;
+	// }
 	
 	var rand = Math.random();
 	

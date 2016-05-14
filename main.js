@@ -5,7 +5,7 @@ global.IRCDEBUG = false;
 
 var config = {
 	channel: "#TPPTableTop", //"#TPPLeague",
-	server: "chat.freenode.net",
+	server: "irc.freenode.net",
 	desiredNick: require("../password").nick,
 	creator: "tustin2121",
 };
@@ -177,11 +177,32 @@ bot.addListener("registered", function(msg){
 	log("  ----- Registered -----  ");
 });
 
+var klineTimeout = 0;
 // On Error
 bot.addListener("error", function(msg){
 	log("[SRV] Received Error from Server!");
 	debug.ircError(msg);
+	
+	if (msg.command == "err_yourebannedcreep") {
+		console.log("I have been K-Lined again. ;_;");
+		bot.removeListener("registered", __klineReconnect);
+		bot.disconnect("(;_;)/ K-Lined, bye...");
+		
+		if (!klineTimeout) klineTimeout = 1 * 60 * 60 * 1000; //1 hour
+		else klineTimeout *= 2; //multiply by 2 every time we're klined
+		
+		setTimeoutSafely(function __klineReconnect(){
+			console.log("Attempting K-Line Timeout Reconnection.");
+			
+			bot.connect(__klineReconnect); //Adds the listener we're removing above
+		}, klineTimeout);
+	}
 });
+function __klineReconnect(){
+	console.log("Connection Attempt Successful! (?!)");
+	__connectionComplete();
+	klineTimeout = 0;
+}
 
 // On Nickname Change
 bot.addListener("nick", function(oldnick, newnick, channels, msg){
@@ -378,6 +399,23 @@ function reloadModule(from, name){
 			}
 			bot.emit("module-reloaded", "game");
 			sayLog(from, "Reload completed successfully.");
+			break;
+			
+		case "digigame":
+			sayLog(from, "Attempting to reload digigame module.");
+			
+			if (!__reloadFile(from, "./qmods/digigame")) return;
+			
+			Game = require("./qmods/digigame");
+			for (var chan in currChans) {
+				var g = currChans[chan];
+				currChans[chan] = new Game(chan);
+				currChans[chan].emit("migrate", g);
+			}
+			bot.emit("module-reloaded", "game");
+			sayLog(from, "Reload completed successfully.");
+			sayLog(from, "Renicking...");
+			bot.send("NICK", "Q20DigimonBot");
 			break;
 			
 		case "pm":
