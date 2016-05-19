@@ -4,6 +4,7 @@ console.log("Loading Module pkick.js");
 var extend = require("extend");
 var irccolors = require("irc").colors;
 var fs = require("fs");
+var PersistedObject = require("persistable-object");
 var _ = require("underscore");
 
 module.exports = {
@@ -14,6 +15,8 @@ module.exports = {
 		bot.addListener("kick#tppleague", partCheck);
 		bot.addListener("quit", partCheck);
 		bot.addListener("kill", partCheck);
+		
+		this.state.store = require("./save-proxy")("data/pkick.json");
     },
     
     teardown : function() {
@@ -23,30 +26,42 @@ module.exports = {
 		bot.removeListener("kick#tppleague", partCheck);
 		bot.removeListener("quit", partCheck);
 		bot.removeListener("kill", partCheck);
+		
+		this.state.store.forceSave();
+    	this.state.store.dispose();
+    	delete this.state.store;
     },
     
     migrate : function(old) {
         extend(this.state, old.state);
     },
     
+    loadFile : function() {
+    	this.state.store.dispose();
+    	this.state.store = require("./save-proxy")("data/pkick.json");;
+    },
+    
     cmds : {},
 };
 
 var state = module.exports.state = {
-    puppy : false,
-	puppy_score_puppy: 0,
-	puppy_score_dead: 0,
-	uranium : 0,
+    deadIsHere : false,
+    store : null,
+	// _score_puppy: 0,
+	// _score_dead: 0,
+	// _uranium : 0,
 };
 
 
 ///////////////////////////////////////////////////////////////
 
+const CHANNEL = "#tppleague";
 const CHANCE_SHOWDOWN = 0.10;
 const CHANCE_PUPNADO = 0.03;
 const CHANCE_DOZEN = 0.02;
 const CHANCE_PUPWIN = 0.30;
-const CHANCE_URANIUM = 0.01;
+const CHANCE_URANIUM = 0.005;
+const NAME_URANIUM = "Kikatanium";
 
 ////////////////////////// Callbacks /////////////////////////
 
@@ -59,11 +74,11 @@ function debugRaw(msg) {
 
 function namesCheck(nicks){
 	safely(function(){
-		console.log(nicks);
+		//console.log(nicks);
 		for (var name in nicks) {
 			if (/^(dead|mobile)insky/i.test(name)) {
-				state.puppy = true;
-				console.log("puppy: ", state.puppy);
+				state.deadIsHere = true;
+				console.log("puppy: ", state.deadIsHere);
 			}
 		}
 	});
@@ -71,28 +86,34 @@ function namesCheck(nicks){
 
 function joinCheck(nick, msg){
 	safely(function(){
-		console.log("DEBUG: joinCheck", nick, /^(dead|mobile)insky/i.test(nick));
+		//console.log("DEBUG: joinCheck", nick, /^(dead|mobile)insky/i.test(nick));
 		if (/^(dead|mobile)insky/i.test(nick)) {
-			state.puppy = true;
-			console.log("puppy: ", state.puppy);
+			state.deadIsHere = true;
+			console.log("puppy: ", state.deadIsHere);
 			
 			// bot.say("#tppleague", "Breaking: The Puppy Nation is attempting Peace Talks with Deadinsky, but Deadinsky has not yet responded. More at 11.");
 			// bot.say("#tppleague", "Breaking: Tensions are rising between the Puppy Nation and Deadinsky after the inadvertant reveal of Deadinsky's cloning machine. More at 11.");
 			// bot.say("#tppleague", "Breaking: Puppy Nation Officials have claimed that Deadinsky is building WMKs (Weapons of Mass Kicking) and are calling for a declaration of war. More at 11.");
 			// bot.say("#tppleague", "Breaking: Puppy Protesters outside capital hill oppose going to war with Deadinsky. \"He's only one man! He can't kick us all!\". More at 11.");
-			if (Math.random() > 0.35) {
+			var rand = Math.random();
+			if (rand < CHANCE_URANIUM) {
+				bot.say("#tppleague", `As ${nick} walks into the room, he accidentally steps on some ${NAME_URANIUM}. He pockets it.`);
+				state.store.uranium++;
+			}
+			else if (rand < 0.45) {
 				var str = nick+" walks into the room and ";
 				var quote = [
 					"a bucket falls on his head and two puppies fall down on it and smack it. They run off as Deadinsky gets his bearings.",
 					"a cup of warm coffee flies across the room from a dense group of puppies and beans Deadinsky in the head.",
 					"he steps on a rake with a bone attached to the end of it. It smacks him across the face.",
 					"suddenly a whip creame pie smacks into his face. The puppies in the room scatter.",
-					"a puppies swings from the ceiling, leaps off, and kicks him in the face, before running off.",
+					"a puppy swings from the ceiling, leaps off, and kicks him in the face, before running off.",
 				];
 				str += quote[Math.floor(Math.random()*quote.length)];
 				bot.say("#tppleague", str);
-				state.puppy_score_puppy += 1;
-			} else {
+				state.store.score_puppy += 1;
+			}
+			else {
 				bot.say("#tppleague", "As "+nick+" walks into the room, the puppies in the area tense up and turn to face him.");
 			}
 			
@@ -102,10 +123,10 @@ function joinCheck(nick, msg){
 
 function partCheck(nick, msg){
 	safely(function(){
-		console.log("DEBUG: partCheck", nick, /^(dead|mobile)insky/i.test(nick));
+		//console.log("DEBUG: partCheck", nick, /^(dead|mobile)insky/i.test(nick));
 		if (/^(dead|mobile)insky/i.test(nick)) {
-			state.puppy = false;
-			console.log("puppy: ", state.puppy);
+			state.deadIsHere = false;
+			console.log("puppy: ", state.deadIsHere);
 		}
 	});
 }
@@ -301,28 +322,28 @@ function performShowdown(forcedNum) {
 	var crit_dead = "", crit_pup = "";
 	if (result >= 3) { //dead won critically
 		result = 2; 
-		state.puppy_score_dead += showdown.win_score*2;
+		state.store.score_dead += showdown.win_score*2;
 		crit_dead = irccolors.codes.cyan+"[CRIT] "+irccolors.codes.reset;
 	} 
 	else if (result <= -3) { //dead lost critically
 		result = -2; 
-		state.puppy_score_puppy += showdown.win_score*2;
+		state.store.score_puppy += showdown.win_score*2;
 		crit_pup = irccolors.codes.cyan+"[CRIT] "+irccolors.codes.reset;
 	}
 	else if (result > 0) { //dead won
 		result = 1; 
-		state.puppy_score_dead += showdown.win_score;
-		state.puppy_score_puppy += showdown.lose_score;
+		state.store.score_dead += showdown.win_score;
+		state.store.score_puppy += showdown.lose_score;
 	}
 	else if (result < 0) { //dead lost
 		result = -1; 
-		state.puppy_score_dead += showdown.lose_score;
-		state.puppy_score_puppy += showdown.win_score;
+		state.store.score_dead += showdown.lose_score;
+		state.store.score_puppy += showdown.win_score;
 	} 
 	else { //tie
 		result = 0; 
-		state.puppy_score_dead += showdown.lose_score;
-		state.puppy_score_puppy += showdown.lose_score;
+		state.store.score_dead += showdown.lose_score;
+		state.store.score_puppy += showdown.lose_score;
 	}
 	
 	bot.say("#tppleague", showdown.setup);
@@ -345,36 +366,36 @@ module.exports.cmds.performShowdown = performShowdown;
 ////////////////////////////////////////////////////////////////
 
 function pscore(nick, text, res) {
-	if (state.puppy_score_dead > 66 && state.puppy_score_dead < 77) {
-		bot.say("#tppleague", "Deadinsky: 66+"+(state.puppy_score_dead-66)+", Puppies: "+state.puppy_score_puppy);
+	if (state.store.score_dead > 66 && state.store.score_dead < 77) {
+		bot.say("#tppleague", `Deadinsky: 66+${state.store.score_dead-66}, Puppies: ${state.store.score_puppy}`);
 	} else {
-		bot.say("#tppleague", "Deadinsky: "+state.puppy_score_dead+", Puppies: "+state.puppy_score_puppy);
+		bot.say("#tppleague", `Deadinsky: ${state.store.score_dead}, Puppies: ${state.store.score_puppy}`);
 	}
 }
 module.exports.cmds.pscore = pscore;
 
 function pkick(nick, text, res) {
+	if (state.deadIsHere && (/^(dead|mobile)insky/i.test(nick)) && Math.random() < CHANCE_URANIUM) {
+		bot.say("#tppleague", `${nick} finds some ${NAME_URANIUM} lying on the ground, and pockets it.`);
+		state.store.uranium++;
+		return;
+	}
+	
 	// Only do showdowns if Deadinsky is around
-	if (state.puppy && Math.random() < CHANCE_SHOWDOWN) {
+	if (state.deadIsHere && Math.random() < CHANCE_SHOWDOWN) {
 		performShowdown();
 		return;
 	}
 	
-	// if (state.puppy && (/^(dead|mobile)insky/i.test(nick)) && Math.random() < CHANCE_URANIUM) {
-	// 	bot.say("#tppleague", nick+" finds some Kikatanium lying on the ground, and pockets it.");
-	// 	state.uranium++;
-	// 	return;
-	// }
-	
 	var rand = Math.random();
 	
-	if (state.puppy
-		&& state.puppy_score_dead > 30
-		&& state.puppy_score_puppy + 45 < state.puppy_score_dead 
+	if (state.deadIsHere
+		&& state.store.score_dead > 30
+		&& state.store.score_puppy + 45 < state.store.score_dead 
 		&& rand < CHANCE_PUPNADO) 
 	{
 		// If deadinsky out-strips the puppies score by more than half, and 5% of the time
-		var scorejump = Math.round((state.puppy_score_dead - state.puppy_score_puppy) * ((Math.random() * 0.2) + 0.9));
+		var scorejump = Math.round((state.store.score_dead - state.store.score_puppy) * ((Math.random() * 0.2) + 0.9));
 		// Increase the puppies' score by the difference between the scores, +/- 10%
 		bot.say("#tppleague", "Deadinsky66 is walking down the road on an abnormally calm day. "
 			+"It is several minutes before he notices the low rumbling sound all around him... "
@@ -382,7 +403,7 @@ function pkick(nick, text, res) {
 			+"He turns and starts sprinting away as fast as he can. But there is no way he "
 			+"can outrun it. The pupnado is soon upon him....");
 		
-		state.puppy_score_puppy += scorejump;
+		state.store.score_puppy += scorejump;
 		return;
 	}
 	
@@ -392,13 +413,13 @@ function pkick(nick, text, res) {
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			bot.say("#tppleague", (num<12?"Almost a dozen":"Over a dozen")+
 				" puppies suddenly fall from the sky onto "+nick+" and curbstomp him.");
-			state.puppy_score_puppy += num;
+			state.store.score_puppy += num;
 			return;
 		}
-		if (state.puppy) {
+		if (state.deadIsHere) {
 			bot.say("#tppleague", nick+" watches as "+(num<12?"maybe":"over")+
 				" a dozen puppies spring from nowhere and ambush Deadinsky, beating him to the curb.");
-			state.puppy_score_puppy += num;
+			state.store.score_puppy += num;
 		} else {
 			bot.say("#tppleague", nick+" goes to kick a puppy on Deadinsky's behalf, "+
 				"but instead gets ganged up on by "+(num<12?"nearly":"over")+" a dozen puppies.");
@@ -410,13 +431,13 @@ function pkick(nick, text, res) {
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			bot.say("#tppleague", nick+" comes across a dog carrier with about a dozen"+
 				" puppies inside. He overturns the whole box with his foot!");
-			state.puppy_score_dead += num;
+			state.store.score_dead += num;
 			return;
 		}
-		if (state.puppy) {
+		if (state.deadIsHere) {
 			bot.say("#tppleague", nick+" watches as Deadinsky punts a dog carrier. "+(num<12?"Maybe":"Over")+
 				" a dozen puppies run in terror from the overturned box.");
-			state.puppy_score_dead += num;
+			state.store.score_dead += num;
 		} else {
 			bot.say("#tppleague", nick+" kicks a puppy on Deadinsky's behalf. "+
 				"The pup flies into a nearby dog carrier with "+(num<12?"nearly":"over")+" a dozen puppies inside and knocks it over.");
@@ -425,33 +446,33 @@ function pkick(nick, text, res) {
 	} else if (rand < CHANCE_PUPWIN) {
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			bot.say("#tppleague", "A puppy kicks "+nick);
-			state.puppy_score_puppy++;
+			state.store.score_puppy++;
 			return;
 		}
-		if (state.puppy) {
+		if (state.deadIsHere) {
 			bot.say("#tppleague", nick+" watches as a puppy kicks Deadinsky's ass.");
-			state.puppy_score_puppy++;
+			state.store.score_puppy++;
 		} else {
 			bot.say("#tppleague", nick+" goes to kick a puppy on Deadinsky's behalf, but instead the puppy dodges it and kicks "+nick+".");
 		}
 	} else {
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			bot.say("#tppleague", nick+" kicks a puppy.");
-			state.puppy_score_dead++;
+			state.store.score_dead++;
 			return;
 		}
 		if (/^azum/i.test(nick) && Math.random() < 0.3) {
-			if (state.puppy) {
+			if (state.deadIsHere) {
 				bot.say("#tppleague", nick+" watches as Deadinsky accidentally voices a puppy while trying to kick it.");
-				state.puppy_score_dead++;
+				state.store.score_dead++;
 			} else {
 				bot.say("#tppleague", nick+" accidentally voices a puppy on Deadinsky's behalf.");
 			}
 			return;
 		}
-		if (state.puppy) {
+		if (state.deadIsHere) {
 			bot.say("#tppleague", nick+" watches as Deadinsky kicks a puppy.");
-			state.puppy_score_dead++;
+			state.store.score_dead++;
 		} else {
 			bot.say("#tppleague", nick+" kicks a puppy on Deadinsky's behalf.");
 		}
@@ -461,20 +482,20 @@ module.exports.cmds.pkick = pkick;
 
 function dkick(nick, text, res) {
 	// Only do showdowns if Deadinsky is around
-	if (state.puppy && Math.random() < CHANCE_SHOWDOWN) {
+	if (state.deadIsHere && Math.random() < CHANCE_SHOWDOWN) {
 		performShowdown();
 		return;
 	}
 	
 	var rand = Math.random();
 	
-	if (state.puppy 
-		&& state.puppy_score_dead > 30
-		&& state.puppy_score_puppy * 2 < state.puppy_score_dead 
+	if (state.deadIsHere 
+		&& state.store.score_dead > 30
+		&& state.store.score_puppy * 2 < state.store.score_dead 
 		&& rand < CHANCE_PUPNADO) 
 	{
 		// If deadinsky out-strips the puppies score by more than half, and 5% of the time
-		var scorejump = Math.round((state.puppy_score_dead - state.puppy_score_puppy) * ((Math.random() * 0.2) + 0.9));
+		var scorejump = Math.round((state.store.score_dead - state.store.score_puppy) * ((Math.random() * 0.2) + 0.9));
 		// Increase the puppies' score by the difference between the scores, +/- 10%
 		bot.say("#tppleague", "Deadinsky66 is walking down the road on an abnormally calm day. "
 			+"It is several minutes before he notices the low rumbling sound all around him..."
@@ -482,7 +503,7 @@ function dkick(nick, text, res) {
 			+"He turns and starts sprinting away as fast as he can. But there is no way he "
 			+"can outrun it. The pupnado is soon upon him....");
 		
-		state.puppy_score_puppy += scorejump;
+		state.store.score_puppy += scorejump;
 		return;
 	}
 	
@@ -492,13 +513,13 @@ function dkick(nick, text, res) {
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			bot.say("#tppleague", (num<12?"Almost a dozen":"Over a dozen")+
 				" puppies suddenly fall from the sky onto "+nick+" and curbstomp him.");
-			state.puppy_score_puppy += num;
+			state.store.score_puppy += num;
 			return;
 		}
-		if (state.puppy) {
+		if (state.deadIsHere) {
 			bot.say("#tppleague", nick+" cheers as "+(num<12?"maybe":"over")+
 				" a dozen puppies spring from nowhere and ambush Deadinsky, beating him to the curb.");
-			state.puppy_score_puppy += num;
+			state.store.score_puppy += num;
 		} else {
 			bot.say("#tppleague", nick+" goes to kick a Deadinsky on puppy's behalf, "+
 				"but instead gets ganged up on by "+(num<12?"nearly":"over")+" a dozen Deadinsky's.");
@@ -510,13 +531,13 @@ function dkick(nick, text, res) {
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			bot.say("#tppleague", nick+" comes across a dog carrier with about a dozen"+
 				" puppies inside. He overturns the whole box with his foot!");
-			state.puppy_score_dead += num;
+			state.store.score_dead += num;
 			return;
 		}
-		if (state.puppy) {
+		if (state.deadIsHere) {
 			bot.say("#tppleague", nick+" gawks as Deadinsky punts a dog carrier. "+(num<12?"Maybe":"Over")+
 				" a dozen puppies run in terror from the overturned box.");
-			state.puppy_score_dead += num;
+			state.store.score_dead += num;
 		} else {
 			bot.say("#tppleague", nick+" kicks a Deadinsky on puppy's behalf. "+
 				"The Deadinsky flies into a nearby dog carrier with "+(num<12?"nearly":"over")+" a dozen Deadinskys inside and knocks it over.");
@@ -525,33 +546,33 @@ function dkick(nick, text, res) {
 	} else if (rand < CHANCE_PUPWIN) {
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			bot.say("#tppleague", "A puppy kicks "+nick);
-			state.puppy_score_puppy++;
+			state.store.score_puppy++;
 			return;
 		}
-		if (state.puppy) {
+		if (state.deadIsHere) {
 			bot.say("#tppleague", nick+" cheers as a puppy kicks Deadinsky's ass.");
-			state.puppy_score_puppy++;
+			state.store.score_puppy++;
 		} else {
 			bot.say("#tppleague", nick+" goes to kick a Deadinsky on puppy's behalf, but instead the Deadinsky dodges it and kicks "+nick+".");
 		}
 	} else {
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			bot.say("#tppleague", nick+" kicks a puppy.");
-			state.puppy_score_dead++;
+			state.store.score_dead++;
 			return;
 		}
 		if (/^azum/i.test(nick) && Math.random() < 0.3) {
-			if (state.puppy) {
+			if (state.deadIsHere) {
 				bot.say("#tppleague", nick+" watches as Deadinsky accidentally voices a puppy while trying to kick it.");
-				state.puppy_score_dead++;
+				state.store.score_dead++;
 			} else {
 				bot.say("#tppleague", nick+" accidentally voices a Deadinsky on puppy's behalf.");
 			}
 			return;
 		}
-		if (state.puppy) {
+		if (state.deadIsHere) {
 			bot.say("#tppleague", nick+" watches, appalled, as Deadinsky kicks a puppy.");
-			state.puppy_score_dead++;
+			state.store.score_dead++;
 		} else {
 			bot.say("#tppleague", nick+" kicks a Deadinsky on puppy's behalf.");
 		}

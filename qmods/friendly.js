@@ -25,10 +25,10 @@ module.exports = {
 	setup : function() {
 		bot.addListener("names#tppleague", namesCheck);
 		bot.addListener("join#tppleague", joinCheck);
-		bot.addListener("kick#tppleague", turnOn);
+		bot.addListener("kick#tppleague", quitCheck);
 		bot.addListener("kick#tppleague", defyLeonys);
-		bot.addListener("quit", turnOn);
-		bot.addListener("kill", turnOn);
+		bot.addListener("quit", quitCheck);
+		bot.addListener("kill", quitCheck);
 		bot.addListener("quit", netsplitHype);
 		bot.addListener("message#tppleague", chatmessage);
 		bot.addListener("+mode", respondOpOn);
@@ -42,10 +42,10 @@ module.exports = {
 	teardown : function(){
 		bot.removeListener("names#tppleague", namesCheck);
 		bot.removeListener("join#tppleague", joinCheck);
-		bot.removeListener("kick#tppleague", turnOn);
+		bot.removeListener("kick#tppleague", quitCheck);
 		bot.removeListener("kick#tppleague", defyLeonys);
-		bot.removeListener("quit", turnOn);
-		bot.removeListener("kill", turnOn);
+		bot.removeListener("quit", quitCheck);
+		bot.removeListener("kill", quitCheck);
 		bot.removeListener("quit", netsplitHype);
 		bot.removeListener("message#tppleague", chatmessage);
 		bot.removeListener("+mode", respondOpOn);
@@ -142,6 +142,8 @@ function namesCheck(nicks){
 	});
 }
 
+var lastJoin = null;
+var lastQuit = null;
 function joinCheck(nick, msg){
 	safely(function(){
 		state.lastNamesListing = null;
@@ -158,7 +160,9 @@ function joinCheck(nick, msg){
 		if (state.modmode) {
 			bot.say("#tppleague", "o/ Please respect the current discussion.")
 		} else if (state.friendly) {
-			bot.say("#tppleague", "o/");
+			if (!__greeting(msg)) {
+				bot.say("#tppleague", "o/");
+			}
 		}
 		
 		if (state.modmode && !/(doof|doot|yay|pikalax)bot\d?$/i.test(nick)) {
@@ -168,18 +172,56 @@ function joinCheck(nick, msg){
 		}
 		
 	});
+	
+	return;
+	
+	function __greeting(msg) {
+		try {
+			if (!msg) return;
+			console.log("Greeting:", msg.nick, "<",lastJoin, ",", lastQuit,">");
+			if (!msg.timestamp) return; //guard against unmodified irc lib
+			if (msg.nick == bot.nick) return; //Don't join spam ourselves
+			
+			if (lastJoin && lastJoin.timestamp)
+			{
+				console.log("Check Last Join");
+				var thisJoinTS = Math.floor(msg.timestamp / 1000); //within a second
+				var lastJoinTS = Math.floor(lastJoin.timestamp / 1000)
+				if (thisJoinTS == lastJoinTS && msg.nick == lastJoin.nick) {
+					bot.say("#tppleague", "DansGame join spam");
+					return true;
+				}
+			}
+			
+			if (lastQuit && lastQuit.timestamp)
+			{
+				console.log("Check Last Part");
+				if (msg.nick == lastQuit.nick) {
+					bot.say("#tppleague", "o/ wb");
+					return true;
+				}
+			}
+		} catch (e) {
+			console.log("ERROR in __greeting!", e.stack);
+		} finally {
+			lastJoin = msg;
+		}
+	}
 }
 
-function turnOn(nick, msg){
+function quitCheck(nick, reason, chans, msg){
 	safely(function(){
 		state.lastNamesListing = null;
+		lastQuit = msg;
 		
 		if (nick == bot.nick) {
 			state.modmode = false; //Forcibly disabled modmode :(
+			lastQuit = null;
 		}
 		
 		if (/^hftf$/i.test(nick) && state.friendly) {
 			bot.say("#tppleague", "no rip");
+			lastQuit = null;
 		}
 		
 		if (/^doofbot$/i.test(nick)) {
@@ -207,21 +249,42 @@ function defyLeonys(nick, msg) {
 	});
 }
 
-var _netsplit_hype_timer = 0;
+var _netsplit_hype = {
+	promise : null,
+	timeout : 0,
+};
 function netsplitHype(nick, reason, msg) {
 	console.log("Quit reason [", nick, "]:", reason);
 	if (reason != "*.net *.split") return;
-	console.log("Netsplit hype! \\o/");
-	
 	if (state.modmode) return;
 	
-	if (!_netsplit_hype_timer) {
-		_netsplit_hype_timer = setTimeout(function(){
+	_netsplit_hype.timeout = Date.now() + 3000; //3 seconds
+	
+	if (!_netsplit_hype.promise || !_netsplit_hype.promise.isPending()) {
+		console.log("Netsplit hype! \\o/", _netsplit_hype.timeout);
+		_netsplit_hype.promise = new Promise(function(accept, reject){
+			function __check(){
+				console.log("Netsplit:", Date.now(), "<", _netsplit_hype.timeout, " = ", Date.now() < _netsplit_hype.timeout);
+				if (Date.now() < _netsplit_hype.timeout) {
+					setTimeout(__check, 1000);
+				} else {
+					accept(_netsplit_hype.timeout);
+				}
+			}
+			setTimeout(__check, 1000);
+		}).then(function(){
 			try {
-				bot.say("#tppleague", "Netsplit Hype! \\o/")
+				bot.say("#tppleague", "Netsplit Hype! \\o/");
+				_netsplit_hype.promise = null;
 			} catch (e) { console.log(e); }
-			_netsplit_hype_timer = 0;
-		}, 1000);
+		});
+		
+		// _netsplit_hype_timer = setTimeout(function(){
+		// 	try {
+		// 		bot.say("#tppleague", "Netsplit Hype! \\o/")
+		// 	} catch (e) { console.log(e); }
+		// 	_netsplit_hype_timer = 0;
+		// }, 1000);
 	}
 }
 
@@ -416,10 +479,18 @@ function chatmessage(nick, text, msg) {
 		
 		{
 			var res;
-			if ((res = /http(s):\/\/i\.imgur\.com\/([a-zA-Z0-9]{5,7})\.([a-zA-Z]{2,5})/i.exec(text))) {
+			if ((res = /http(s)?:\/\/i\.imgur\.com\/([a-zA-Z0-9]{5,7})\.([a-zA-Z]{2,5})/i.exec(text))) {
+				if (!res[1]) res[1]="";
 				bot.say("#tppleague", "[Mobile View:] http"+res[1]+"://i.imgur.com/"+res[2]+"m."+res[3]);
 				return;
 			}
+		}
+		
+		if (/tppSlowpoke/.test()) {
+			setTimeoutSafely(function(){
+				bot.say("#tppleague", "tppSlowpoke> huh?");
+			}, 1000*50+Math.floor(Math.random()*1000*30));
+			return;
 		}
 		
 		if (/^uhr$/.test(text)) {
@@ -434,18 +505,35 @@ function chatmessage(nick, text, msg) {
 		
 		if (/tvtropes\.org\//.test(text)) {
 			bot.say("#tppleague", "[ Link Warning: TV TROPES! ]");
-			if (!state.tv_tropes_timeout) {
-				var delay = 60 * 1000 * (Math.floor(Math.random()*240) + 90); //anywhere from 1.5 to 5.5 hours!
-				console.log("Visiting TV Tropes for",(delay/(1000*60*60)),"hours.");
-				// var delay = 60 * (Math.floor(Math.random()*240) + 90); //anywhere from 1.5 to 5.5 hours!
-				// console.log("Visiting TV Tropes for",(delay/(60*60)),"hours.");
-				state.tv_tropes_timeout = setTimeout(function(){
-					console.log("Returning from TV Tropes");
-					state.tv_tropes_timeout = null;
+			
+			var lastVisit = state.tv_tropes_timeout
+			if (!lastVisit || !lastVisit.isPending()) {
+				state.tv_tropes_timeout = new Promise(function(accept, reject){
+					var delay = 60 * 1000 * (Math.floor(Math.random()*240) + 90); //anywhere from 1.5 to 5.5 hours!
+					console.log("Visiting TV Tropes for",(delay/(1000*60*60)),"hours.");
+					bot.action("#tppleague", "unwittingly follows the link to TV Tropes....");
+					setTimeout(function(){
+						accept(delay);
+						console.log("Returning from TV Tropes");
+					}, delay);
+				}).then(function(){
 					bot.action("#tppleague", "returns from TV Tropes, groggy, enlightened, and knowing too much about random movies and TV shows.");
-				}, delay);
-				bot.action("#tppleague", "unwittingly follows the link to TV Tropes....");
+					state.tv_tropes_timeout = null;
+				});
 			}
+			
+			// if (!state.tv_tropes_timeout) {
+			// 	var delay = 60 * 1000 * (Math.floor(Math.random()*240) + 90); //anywhere from 1.5 to 5.5 hours!
+			// 	console.log("Visiting TV Tropes for",(delay/(1000*60*60)),"hours.");
+			// 	// var delay = 60 * (Math.floor(Math.random()*240) + 90); //anywhere from 1.5 to 5.5 hours!
+			// 	// console.log("Visiting TV Tropes for",(delay/(60*60)),"hours.");
+			// 	state.tv_tropes_timeout = setTimeout(function(){
+			// 		console.log("Returning from TV Tropes");
+			// 		state.tv_tropes_timeout = null;
+			// 		bot.action("#tppleague", "returns from TV Tropes, groggy, enlightened, and knowing too much about random movies and TV shows.");
+			// 	}, delay);
+			// 	bot.action("#tppleague", "unwittingly follows the link to TV Tropes....");
+			// }
 			return;
 		}
 		
@@ -469,11 +557,16 @@ function chatmessage(nick, text, msg) {
 		}
 	});
 	
+	// if (/^!testnetsplit/.test(text)) {
+	// 	netsplitHype(nick, "*.net *.split", null);
+	// 	return;
+	// }
+	
 	if (text.indexOf("!") != 0) return;
 	if (/Discord/i.test(nick)) return; //probably already covered by the bot abuse guard, but idc
 	
 	safely(function(){
-		var now = new Date().getTime();
+		var now = Date.now();
 		if (now < lastmsg + 5000) return; //5 second spam wait
 		
 		if (/^doof|^doot|bot$/i.test(nick)) return;
@@ -489,6 +582,33 @@ function chatmessage(nick, text, msg) {
 			}
 		}
 	});
+}
+
+// Quick quote functions
+function q(cmd, quote) {
+	if (typeof quote == "string") {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			bot.say("#tppleague", quote);
+		} });
+	} else if (_.isArray(quote)) {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
+		} });
+	}
+}
+
+function dq(cmd, quote) {
+	if (typeof quote == "string") {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			if (!state.friendly) return;
+			bot.say("#tppleague", quote);
+		} });
+	} else if (_.isArray(quote)) {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			if (!state.friendly) return;
+			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
+		} });
+	}
 }
 /////////////////////// Chat Death Index /////////////////////
 
@@ -511,9 +631,6 @@ function storeCDI() {
 	});
 }
 
-
-/////////////////////////// Memory //////////////////////////
-
 function authenticate(nick, permittedCallback) {
 	bot.whois(nick, function(info){
 		console.log(info);
@@ -527,6 +644,7 @@ function authenticate(nick, permittedCallback) {
 	});
 }
 
+module.exports.getCmdList = function(){ return cmds; };
 
 
 /////////////////////// Chat commands ///////////////////////////
@@ -547,12 +665,9 @@ cmds.push({
 
 /////////// Links ////////////
 
-cmds.push({
-	cmd : /^identify(s)? ?([a-zA-Z0-9_-]+)?/i,
-	run : function(nick, text, res, msg) {
-		bot.say("#tppleague", "Please monitor ##tppleague#id for this information.");
-	}
-});
+q(/^(q20)?(help|commands)/, "My command list: http://pastebin.com/DiuTA1CG");
+
+q(/^identify(s)? ?([a-zA-Z0-9_-]+)?/i, "Please monitor ##tppleague#id for this information.");
 
 cmds.push({
 	cmd : /^log/i,
@@ -766,9 +881,10 @@ cmds.push({
 				case "plsrespecttables":
 				case "prt":
 				case "pleaserespecttables":
-					bot.say("#tppleague", "/u/PleaseRespectTables ノ(ಠ_ಠノ)"); break;
+					bot.say("#tppleague", "/u/PleaseRespectTables ┬✿-»┬ノ(ಥ﹏ಥノ)"); break;
 				case 0:
 					bot.say("#tppleague", "ＬＥＡＶＥ　ＴＨＥ　ＧＯＤＤＡＭＮＥＤ　ＴＡＢＬＥ　ＡＬＯＮＥ！！！　 (•̪●)=ε/̵͇̿̿/'̿'̿ ̿ ̿̿ ̿ ̿”┬─┬Ψ(° д°)"); break;
+					//bot.say("#tppleague", "┬✿-»┬"); break;
 					//bot.say("#tppleague", "┬─┬"); break;
 				default:
 					bot.say("#tppleague", lastflip+" ノ(ಠ_ಠノ)"); break;
@@ -835,7 +951,7 @@ cmds.push({
 (function(){
 	cmds.push({
 		cmd : /^(pscore|dscore|pkick score(board)?|dkick score(board)?)/i,
-		run : require("./pkick").cmds.pscore,
+		run : function(nick, text, res){ require("./pkick").cmds.pscore(nick, text, res); },
 	});
 	
 	cmds.push({
@@ -846,16 +962,17 @@ cmds.push({
 			}
 			return; //this is my test command
 		},
+		hidden: true,
 	});
 	
 	cmds.push({
 		cmd : /^pkick/i,
-		run : require("./pkick").cmds.pkick,
+		run : function(nick, text, res){ require("./pkick").cmds.pkick(nick, text, res); },
 	});
 	
 	cmds.push({
 		cmd : /^dkick/i,
-		run : require("./pkick").cmds.dkick,
+		run : function(nick, text, res){ require("./pkick").cmds.dkick(nick, text, res); },
 	});
 
 })();
@@ -1109,32 +1226,6 @@ cmds.push({
 
 ////////// Quotes ///////////
 
-function q(cmd, quote) {
-	if (typeof quote == "string") {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
-			bot.say("#tppleague", quote);
-		} });
-	} else if (_.isArray(quote)) {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
-			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
-		} });
-	}
-}
-
-function dq(cmd, quote) {
-	if (typeof quote == "string") {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
-			if (!state.friendly) return;
-			bot.say("#tppleague", quote);
-		} });
-	} else if (_.isArray(quote)) {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
-			if (!state.friendly) return;
-			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
-		} });
-	}
-}
-
 dq(/^(rip|no)doof/i, "rip DoofBot");
 q(/^(rip|no)doot/i, "rip DootBot");
 q(/^(rip|no)yay/i, "rip YayBot");
@@ -1261,6 +1352,7 @@ q(/^2016/i, [
 	'"and I need 2016 quote tustin2121 BabyRage" - sohippy 2016',
 ]);
 
+q(/^(password|12345?)/, 'https://www.youtube.com/watch?v=a6iW-8xPw3k');
 q(/^blind/i, '"how do blind people supposed to know they can cross the road?" --Streamer 2015');
 q(/^(notesticles|noballs|notahero)/i, '"I am not a hero, just a man with no testicles" --/u/Military_SS 2015');
 q(/^xyzzy/i, '\u001D'+'A hollow voice says, "Fool!"'+'\u000f');

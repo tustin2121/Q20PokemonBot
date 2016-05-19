@@ -10,6 +10,13 @@ var cmds = [];
 var identify = require("./identify");
 var monitor = require("./monitor");
 
+if (!Promise.prototype.isPending) {
+	// Horrible workaround for the fact that there is no check of the internal state of a promise
+	Promise.prototype.isPending = function(){
+		return util.inspect(this).indexOf("<pending>")>-1; 
+	}
+}
+
 bot.on("module-reloaded", function(module){
 	switch (module) {
 // 		case "game": Game = require("./game"); break;
@@ -44,15 +51,23 @@ function parse(cmd) {
 }
 
 parse.shutdownServer = function() {
-	console.log("Shutting down server!");
+	console.log("Saving and shutting down server!");
+	identify.saveForShutdown();
+	// require("node-persist").persistSync();
+	try { require("./pkick").state.store.forceSave(); } catch(e) { console.log("ERROR saving:",e); }
     for (var id in currChans) {
 		currChans[id].forceQuit(null, "shutdown");
 	}
-	bot.disconnect(function(){
-		identify.saveForShutdown();
-		//syncSave(); //save synchronously before quitting
-		
-		process.exit();
+	
+	console.log("Disconnecting bot... (10 seconds)");
+	setTimeout(function(){ 
+		process.exit(-1)
+		console.log("Bot did not disconnect in 10 seconds. Forcing quit.");
+	}, 10*1000 ); //wait ten seconds before forcing down
+	
+	bot.disconnect("Q20PokemonBot says goodbye! o/", function(){
+		console.log("Bot disconnected.");
+		process.exit(0);
 	});
 };
 
@@ -124,6 +139,14 @@ cmds.push({
 });
 
 cmds.push({
+	cmd: /^(?:pkick load|load pkick)/i,
+	run: function(text) {
+		require("./pkick").loadFile();
+		console.log("File loaded from disk.");
+	}
+});
+
+cmds.push({
 	cmd: /^refresh(mon(itor)?)?/i,
 	run: function(text) {
 		bot.emit("mon_update");
@@ -175,6 +198,9 @@ cmds.push({
 			case "friendly":
 				console.log(util.inspect(require("./friendly").state));
 				break;
+			case "pkick":
+				console.log(util.inspect(require("./pkick").state));
+				break;
 			case "identify":
 				console.log(util.inspect(require("./identify").state));
 				break;
@@ -184,11 +210,12 @@ cmds.push({
 
 cmds.push({
 	cmd: /^commandlist (.*)/i,
-	run: function(text, res) {
+    run: function(text, res) {
 		switch (res[1]) {
 			case "friendly":
 				cmds = require("./friendly").getCmdList()
 				for (var i = 0; i < cmds.length; i++) {
+					if (cmds[i].hidden) continue;
 					console.log(cmds[i].cmd);
 				}
 				break;

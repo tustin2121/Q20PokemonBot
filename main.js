@@ -15,6 +15,12 @@ var util= require("util");
 var _	= require("underscore");
 var readline = require("readline");
 
+// require("node-persist").init({
+// 	dir: "~/data/persistence",
+// 	logging: true,
+// 	//interval: 5*60*1000, //persist changes every 5 minutes
+// });
+
 var bot = global.bot = new irc.Client(config.server, config.desiredNick, {
 	autoRejoin: false,
 	autoConnect: false,
