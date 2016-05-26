@@ -574,8 +574,8 @@ function chatmessage(nick, text, msg) {
 		var res = null;
 		var txt = text.substr(1);
 		for (var i = 0; i < cmds.length; i++) {
-			if (state.modmode && !cmds[i]["mod"]) continue; //don't execute certain commands in modmode
-			if (res = cmds[i].cmd.exec(txt)) {
+			if (state.modmode && !cmds[i]["modmode"]) continue; //don't execute certain commands in modmode
+			if ((res = cmds[i].cmd.exec(txt))) {
 				cmds[i].run(nick, text, res, msg);
 				lastmsg = now;
 				return;
@@ -584,48 +584,66 @@ function chatmessage(nick, text, msg) {
 	});
 }
 
-// Quick quote functions
-function q(cmd, quote) {
-	if (typeof quote == "string") {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
-			bot.say("#tppleague", quote);
-		} });
-	} else if (_.isArray(quote)) {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
-			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
-		} });
-	} else if (_.isFunction(quote)) {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
-			bot.say("#tppleague", quote(res, {nick : nick, text : text}));
-		} });
-	}
+function q_makedict(nick, text) {
+	return {
+		nick : nick, text : text,
+		thisyear : function() {return new Date().getFullYear() },
+	};
 }
 
-function dq(cmd, quote) {
+// Quick quote functions
+function q(cmd, quote, opts) {
+	var newcmd;
 	if (typeof quote == "string") {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+		newcmd = { cmd: cmd, run: function(nick, text, res) {
+			bot.say("#tppleague", quote);
+		} };
+	} else if (_.isArray(quote)) {
+		newcmd = { cmd: cmd, run: function(nick, text, res) {
+			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
+		} };
+	} else if (_.isFunction(quote)) {
+		newcmd = { cmd: cmd, run: function(nick, text, res) {
+			bot.say("#tppleague", quote(res, q_makedict(nick, text)));
+		} };
+	}
+	if (opts) extend(newcmd, opts);
+	cmds.push(newcmd);
+}
+
+function dq(cmd, quote, opts) {
+	var newcmd;
+	if (typeof quote == "string") {
+		newcmd = { cmd: cmd, run: function(nick, text, res) {
 			if (!state.friendly) return;
 			bot.say("#tppleague", quote);
-		} });
+		} };
 	} else if (_.isArray(quote)) {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+		newcmd = { cmd: cmd, run: function(nick, text, res) {
 			if (!state.friendly) return;
 			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
-		} });
+		} };
 	}  else if (_.isFunction(quote)) {
-		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+		newcmd = { cmd: cmd, run: function(nick, text, res) {
 			if (!state.friendly) return;
-			bot.say("#tppleague", quote(res, {nick : nick, text : text}));
-		} });
+			bot.say("#tppleague", quote(res, q_makedict(nick, text)));
+		} };
 	}
+	newcmd.doof = true;
+	if (opts) extend(newcmd, opts);
+	cmds.push(newcmd);
 }
 
 // Tag function, for template strings: qp`Hello`
 function qp(strings, ...keys) {
+	strings = strings.map(function(str){
+		return str.replace(/\n/g, "");
+	});
 	return (function(values, dict){
 		var result = [strings[0]];
 		keys.forEach(function(key, i){
 			var value = Number.isInteger(key) ? values[key] : dict[key];
+			if (_.isFunction(value)) value = value();
 			result.push(value, strings[i+1]);
 		});
 		return result.join('');
@@ -688,37 +706,10 @@ cmds.push({
 /////////// Links ////////////
 
 q(/^(q20)?(help|commands)/, "My command list: http://pastebin.com/DiuTA1CG");
-
 q(/^identify(s)? ?([a-zA-Z0-9_-]+)?/i, "Please monitor ##tppleague#id for this information.");
-
-cmds.push({
-	cmd : /^log/i,
-	modmode: true,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", `${nick}: Logs: https://tppx.herokuapp.com/league/`);
-	}
-});
-
+q(/^log/i, qp`${"nick"}: Logs: https://tppx.herokuapp.com/league/`, {modemode : true});
 q(/^(forum|meta)$/i, `rip meta forum 2015-2015`);
-// cmds.push({
-// 	cmd : /^(forum|meta)$/i,
-// 	modmode: true,
-// 	run : function(nick, text, res) {
-// 		// bot.say("#tppleague", nick+": Forums: https://meta.tppleague.me/");
-// 		bot.say("#tppleague", nick+": Forums: ¯\\(°_o)/¯");
-// 	}
-// });
-
-cmds.push({
-	cmd : /^park/i,
-	run : function(nick, text, res) {
-		// if (Math.random() > 0.5) {
-			bot.say("#tppleague", nick+": http://tustin2121.github.io/TPPPark/");
-		// } else {
-			// bot.say("#tppleague", "TUSTIN! UPDATE THE PARK!!");
-		// }
-	}
-});
+q(/^park/i, qp`${"nick"}: http://tustin2121.github.io/TPPPark/`);
 
 ////////// CDI /////////////
 
@@ -859,11 +850,11 @@ cmds.push({
 	'\u203F' : '\u2040',
 	'\u2045' : '\u2046',
 	'\u2234' : '\u2235'
-	}
+	};
 
-	for (i in flipTable)
+	for (var i in flipTable)
 	{
-		flipTable[flipTable[i]] = i
+		flipTable[flipTable[i]] = i;
 	}
 	
 	var lastflip = 0;
@@ -1136,10 +1127,10 @@ cmds.push({
 	run : function(){
 		if (!state.friendly) return;
 		if (Math.random() > 0.8) {
-			bot.say("#tppleague", "And lo, the chat did die on this day. And lo, all discussion ceased. The chat had gone to meet its makers in the sky. It remained stiff. It ripped, and went forth into the ether forevermore. And never again shall it rise, until someone steps forth and speaketh unto the chat once again. In the name of the Helix, the Dome, and the Amber of Olde, Amen. Press F to Pay Respects.")
+			bot.say("#tppleague", "And lo, the chat did die on this day. And lo, all discussion ceased. The chat had gone to meet its makers in the sky. It remained stiff. It ripped, and went forth into the ether forevermore. And never again shall it rise, until someone steps forth and speaketh unto the chat once again. In the name of the Helix, the Dome, and the Amber of Olde, Amen. Press F to Pay Respects.");
 			return;
 		}
-		bot.say("#tppleague", "And lo, the chat did die on this day. And lo, all discussion ceased. The chat had gone to meet its makers in the sky. It remained stiff. It ripped, and went forth into the ether forevermore. And never again shall it rise, until someone steps forth and speaketh unto the chat once again. In the name of the Helix, the Dome, and the Amber of Olde, Amen. Please pay your final respects now.")
+		bot.say("#tppleague", "And lo, the chat did die on this day. And lo, all discussion ceased. The chat had gone to meet its makers in the sky. It remained stiff. It ripped, and went forth into the ether forevermore. And never again shall it rise, until someone steps forth and speaketh unto the chat once again. In the name of the Helix, the Dome, and the Amber of Olde, Amen. Please pay your final respects now.");
 	},
 });
 
@@ -1225,7 +1216,7 @@ cmds.push({
 			case "logs":	creator = "xfix"; botname = "logs,"; break;
 		}
 		
-		bot.say("#tppleague", '"Fix your '+botname+' '+creator+'!" - xfix 2014');
+		bot.say("#tppleague", `"Fix your ${botname} ${creator}!" - xfix 2014`);
 	},
 });
 
@@ -1233,7 +1224,7 @@ cmds.push({
 	cmd: /^add2nuke (.*)/i,
 	run : function(nick, text, res) {
 		if (state.nukelist.length > 16) {
-			bot.say("#tppleague", "We don't have the nuclear capacity to add another to the list...")
+			bot.say("#tppleague", "We don't have the nuclear capacity to add another to the list...");
 		}
 		state.nukelist.push(res[1].substring(0, 42));
 		bot.say("#tppleague", "Added to list.");
@@ -1254,7 +1245,7 @@ dq(/^(rip|no)doof/i, "rip DoofBot");
 q(/^(rip|no)doot/i, "rip DootBot");
 q(/^(rip|no)yay/i, "rip YayBot");
 // q(/^(rip|no)q20/i, "But... I'm still here... ;_;");
-q(/^(rip|no)q20/i, qp`I'm not currently K-Lined, actually, ${"nick"}. Keepo`);
+q(/^(rip|no)q20/i, `I'm not currently K-Lined, actually. Keepo`);
 q(/^rimshot/i, "badum tish!");
 q(/^question/i, "question> dodged");
 q(/^ohmy/i, "http://replygif.net/i/1381.gif");
@@ -1329,14 +1320,8 @@ cmds.push({
 	}
 });
 
-cmds.push({
-	cmd : /^(rude|rood|zinzolin|gorm|bronius|giallo|ryoku|ghetsis)/i,
-	run : function(nick, text, res) {
-		if (!state.friendly) return;
-		bot.say("#tppleague", '"rood zinzolin gorm bronius giallo ryoku ghetsis" - '
-			+nick+' '+(new Date(Date.now()).getFullYear()));
-	}
-});
+dq(/^(rude|rood|zinzolin|gorm|bronius|giallo|ryoku|ghetsis)/i, 
+	qp`"rood zinzolin gorm bronius giallo ryoku ghetsis" --${"nick"} ${"thisyear"}`)
 
 cmds.push({
 	cmd : /^cape ?(.*)?/i,
@@ -1397,10 +1382,10 @@ q(/^savi/i, '"Praise our Lord and Savi" - ProjectRevoTPP 2016');
 q(/^ech/i, '"Actually, the <input> snaps in two" - JonTron 20xx');
 q(/^chat/i, '"chat is so ded that i think soded is so ded to the point dead in sky becomes soded while pinging soded dead in sky changes its name to mobile in sky use your mobile in the sky new meme" - mlz 2016');
 
-q(/^haiku/i, "a haiku about bots, by TieSoul: "+
-	"Doot is not yet fixed, "+
-	"because I am too lazy, "+
-	"where the fuck is doof?");
+q(/^haiku/i, qp`a haiku about bots, by TieSoul: 
+	Doot is not yet fixed, 
+	because I am too lazy, 
+	where the fuck is doof?`);
 
 cmds.push({
 	cmd : /^wtf/i,
@@ -1491,11 +1476,13 @@ q(/^quilava/i, [
 	"Quilava <3 http://img03.deviantart.net/0922/i/2013/153/5/4/more_cuddling_x3_by_rikuaoshi-d67k2gn.jpg", //Quilava and Lioone
 ]);
 
-q(/^plagueinc/i, '"I was playing Plague Inc and when I searched for plagues nothing '+
-	"showed up, it linked me to the Silph CEO\'s room where he asked me if I had consulted "+
-	'the helix fossil. On the back wall of his office was a portrait of the Villager praising Helix." --Iwamiger 2014');
+// q(/^plagueinc/i, '"I was playing Plague Inc and when I searched for plagues nothing '+
+// 	"showed up, it linked me to the Silph CEO\'s room where he asked me if I had consulted "+
+// 	'the helix fossil. On the back wall of his office was a portrait of the Villager praising Helix." --Iwamiger 2014');
 
-
+q(/^plagueinc/i, qp`"I was playing Plague Inc and when I searched for plagues nothing 
+	showed up, it linked me to the Silph CEO's room where he asked me if I had consulted 
+	the helix fossil. On the back wall of his office was a portrait of the Villager praising Helix." --Iwamiger 2014`);
 
 
 
