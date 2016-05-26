@@ -594,6 +594,10 @@ function q(cmd, quote) {
 		cmds.push({ cmd: cmd, run: function(nick, text, res) {
 			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
 		} });
+	} else if (_.isFunction(quote)) {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			bot.say("#tppleague", quote(res, {nick : nick, text : text}));
+		} });
 	}
 }
 
@@ -608,8 +612,26 @@ function dq(cmd, quote) {
 			if (!state.friendly) return;
 			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
 		} });
+	}  else if (_.isFunction(quote)) {
+		cmds.push({ cmd: cmd, run: function(nick, text, res) {
+			if (!state.friendly) return;
+			bot.say("#tppleague", quote(res, {nick : nick, text : text}));
+		} });
 	}
 }
+
+// Tag function, for template strings: qp`Hello`
+function qp(strings, ...keys) {
+	return (function(values, dict){
+		var result = [strings[0]];
+		keys.forEach(function(key, i){
+			var value = Number.isInteger(key) ? values[key] : dict[key];
+			result.push(value, strings[i+1]);
+		});
+		return result.join('');
+	});
+}
+
 /////////////////////// Chat Death Index /////////////////////
 
 function storeCDI() {
@@ -673,17 +695,19 @@ cmds.push({
 	cmd : /^log/i,
 	modmode: true,
 	run : function(nick, text, res) {
-		bot.say("#tppleague", nick+": Log: https://tppleague.me/irc/");
+		bot.say("#tppleague", `${nick}: Logs: https://tppx.herokuapp.com/league/`);
 	}
 });
 
-cmds.push({
-	cmd : /^(forum|meta)$/i,
-	modmode: true,
-	run : function(nick, text, res) {
-		bot.say("#tppleague", nick+": Forums: https://meta.tppleague.me/");
-	}
-});
+q(/^(forum|meta)$/i, `rip meta forum 2015-2015`);
+// cmds.push({
+// 	cmd : /^(forum|meta)$/i,
+// 	modmode: true,
+// 	run : function(nick, text, res) {
+// 		// bot.say("#tppleague", nick+": Forums: https://meta.tppleague.me/");
+// 		bot.say("#tppleague", nick+": Forums: ¯\\(°_o)/¯");
+// 	}
+// });
 
 cmds.push({
 	cmd : /^park/i,
@@ -1230,7 +1254,7 @@ dq(/^(rip|no)doof/i, "rip DoofBot");
 q(/^(rip|no)doot/i, "rip DootBot");
 q(/^(rip|no)yay/i, "rip YayBot");
 // q(/^(rip|no)q20/i, "But... I'm still here... ;_;");
-q(/^(rip|no)q20/i, "I'm not currently K-Lined, actually. Keepo");
+q(/^(rip|no)q20/i, qp`I'm not currently K-Lined, actually, ${"nick"}. Keepo`);
 q(/^rimshot/i, "badum tish!");
 q(/^question/i, "question> dodged");
 q(/^ohmy/i, "http://replygif.net/i/1381.gif");
@@ -1296,9 +1320,10 @@ dq(/^quiznos/i, [
 	'"I bet you\'re the type of fuck nigga who eats at Quizno\'s" - Anonymous 20XX',
 	'"I bet you eat at quiznos, bitch" -Aquawave 2014',
 ]);
+dq(/^drama(hour)?/i, `"RUH ROH DRAMA HOUR TIME BOYS" - Iwamiger 2015`);
 
 cmds.push({
-	cmd : /^(dramahour|popcorn)/i,
+	cmd : /^(popcorn)/i,
 	run : function(nick, text, res) {
 		bot.action("#tppleague", `begins dispensing popcorn, and hands the first batch to ${nick}.`);
 	}
