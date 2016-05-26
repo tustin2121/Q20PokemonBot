@@ -178,13 +178,13 @@ function joinCheck(nick, msg){
 	function __greeting(msg) {
 		try {
 			if (!msg) return;
-			console.log("Greeting:", msg.nick, "<",lastJoin, ",", lastQuit,">");
+			// console.log("Greeting:", msg.nick, "<",lastJoin, ",", lastQuit,">");
 			if (!msg.timestamp) return; //guard against unmodified irc lib
 			if (msg.nick == bot.nick) return; //Don't join spam ourselves
 			
 			if (lastJoin && lastJoin.timestamp)
 			{
-				console.log("Check Last Join");
+				// console.log("Check Last Join");
 				var thisJoinTS = Math.floor(msg.timestamp / 1000); //within a second
 				var lastJoinTS = Math.floor(lastJoin.timestamp / 1000)
 				if (thisJoinTS == lastJoinTS && msg.nick == lastJoin.nick) {
@@ -195,7 +195,7 @@ function joinCheck(nick, msg){
 			
 			if (lastQuit && lastQuit.timestamp)
 			{
-				console.log("Check Last Part");
+				// console.log("Check Last Part");
 				if (msg.nick == lastQuit.nick) {
 					bot.say("#tppleague", "o/ wb");
 					return true;
@@ -1235,6 +1235,7 @@ q(/^rimshot/i, "badum tish!");
 q(/^question/i, "question> dodged");
 q(/^ohmy/i, "http://replygif.net/i/1381.gif");
 q(/^(the|gta(the)?)joke/i, "http://i.imgur.com/pcs7Q9J.gif");
+q(/^of ?course\!*/i,"https://www.youtube.com/watch?v=1W7c8QghPxk");
 q(/^damn/i, '"Damn" - Deadinsky66 2014');
 q(/^virtualboy/i, '"ALL HAIL THE VIRTUAL BOY" - Satoru Iwata 2014');
 dq(/^oppression/i, '"NO MORE OPPRESSION!" - Deadinsky66 2015');
@@ -1297,7 +1298,14 @@ dq(/^quiznos/i, [
 ]);
 
 cmds.push({
-	cmd : /^(rood|rude)/i,
+	cmd : /^(dramahour|popcorn)/i,
+	run : function(nick, text, res) {
+		bot.action("#tppleague", `begins dispensing popcorn, and hands the first batch to ${nick}.`);
+	}
+});
+
+cmds.push({
+	cmd : /^(rude|rood|zinzolin|gorm|bronius|giallo|ryoku|ghetsis)/i,
 	run : function(nick, text, res) {
 		if (!state.friendly) return;
 		bot.say("#tppleague", '"rood zinzolin gorm bronius giallo ryoku ghetsis" - '
@@ -1331,7 +1339,7 @@ q(/^(pioxmiefic|traininghard)/i, 'DansGame');
 q(/^quotebot$/i, '"Reminder i Run the Quote Bot and anyone who tries to copy that should get the fuck out" - Leoyns 2015');
 
 // Dootbot Quotes
-q(/^(fools|idiots)\!?/i, '"Im surrounded by those of questionable knowledge." - DootBot 2015');
+q(/^(fools|idiots)\!?/i, `"Im surrounded by those of questionable knowledge. sometime i wonder why. its like a day. but at least we have to fight." --DootBot 2015-2016`);
 q(/^(sentient)/i, 'https://tppx.herokuapp.com/league/?date=2015-12-13T03:00#id78415163');
 q(/^(tpp|tpppark)?rule1/i, '"tpp park rule 1: don\'t run any countries" --Dootbot 2016');
 q(/^defeat/i, '"Hello my name is defeat, I know you recognize me, Just when you think you can win, I\'ll drag you back down again, \'Til you lost all belief" - DoofBot 2015');

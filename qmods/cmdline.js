@@ -37,7 +37,7 @@ function parse(cmd) {
 		
 		var res = null;
 		for (var i = 0; i < cmds.length; i++) {
-			if (res = cmds[i].cmd.exec(cmd)) {
+			if ((res = cmds[i].cmd.exec(cmd))) {
 				cmds[i].run(cmd, res);
 				return;
 			}
@@ -226,7 +226,7 @@ cmds.push({
 cmds.push({
 	cmd: /^resetTVTropes/i,
 	run: function(text, res) {
-		require("./identify").state.tv_tropes_timeout = null;
+		require("./friendly").state.tv_tropes_timeout = null;
 		bot.action("#tppleague", "is forcefully fished out of the bowels of TV Tropes by Tustin!");
 		console.log("forcefully fished out of the bowels of TV Tropes by Tustin!");
 	}
