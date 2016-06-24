@@ -448,6 +448,8 @@ function chatmessage(nick, text, msg) {
 		
 		// Section for responding to bots:
 		
+		var loghide = (/^\s/.test(text))?" ":"";
+		
 		if (/^doofbot$/i.test(nick) && !state.modmode) {
 			if (/^traitor$/i.test(text)) bot.say("#tppleague", "asshole");
 			if (/^pouet$/i.test(text)) bot.say("#tppleague", "ech");
@@ -481,25 +483,25 @@ function chatmessage(nick, text, msg) {
 			var res;
 			if ((res = /http(s)?:\/\/i\.imgur\.com\/([a-zA-Z0-9]{5,7})\.([a-zA-Z]{2,5})/i.exec(text))) {
 				if (!res[1]) res[1]="";
-				bot.say("#tppleague", "[Mobile View:] http"+res[1]+"://i.imgur.com/"+res[2]+"m."+res[3]);
+				bot.say("#tppleague", loghide+"[Mobile View:] http"+res[1]+"://i.imgur.com/"+res[2]+"m."+res[3]);
 				return;
 			}
 		}
 		
 		if (/tppSlowpoke/.test()) {
 			setTimeoutSafely(function(){
-				bot.say("#tppleague", "tppSlowpoke> huh?");
+				bot.say("#tppleague", loghide+"tppSlowpoke> huh?");
 			}, 1000*50+Math.floor(Math.random()*1000*30));
 			return;
 		}
 		
-		if (/^uhr$/.test(text)) {
-			bot.say("#tppleague", "fnghengvba");
+		if (/^\s?uhr$/.test(text)) {
+			bot.say("#tppleague", loghide+"fnghengvba");
 			return;
 		}
 		
 		if (/tinyurl\.com\//.test(text)) {
-			bot.say("#tppleague", "[ Link: probably porn ]");
+			bot.say("#tppleague", loghide+"[ Link: probably porn ]");
 			return;
 		}
 		
@@ -549,11 +551,12 @@ function chatmessage(nick, text, msg) {
 		}
 		
 		if (/take(s|ing)? over the world/i.test(text)) {
-			bot.say("#tppleague", "OF COURSE!!");
+			bot.say("#tppleague", loghide+"OF COURSE!!");
 		}
 		
 		if (/i[st] (tpp|twitchplayspokemon|this) still? a thing\??/i.test(text)) {
-			bot.say("#tppleague", "It is still.");
+			//bot.say("#tppleague", "It is still.");
+			bot.action("#tppleague", "pokes TPP with a stick.");
 		}
 	});
 	
@@ -561,8 +564,9 @@ function chatmessage(nick, text, msg) {
 	// 	netsplitHype(nick, "*.net *.split", null);
 	// 	return;
 	// }
+	var loghide = /^\s/.test(text);
 	
-	if (text.indexOf("!") != 0) return;
+	if (text.indexOf("!") != (loghide)?1:0) return;
 	if (/Discord/i.test(nick)) return; //probably already covered by the bot abuse guard, but idc
 	
 	safely(function(){
@@ -572,16 +576,23 @@ function chatmessage(nick, text, msg) {
 		if (/^doof|^doot|bot$/i.test(nick)) return;
 		
 		var res = null;
-		var txt = text.substr(1);
+		var txt = text.substr((loghide)?2:1);
 		for (var i = 0; i < cmds.length; i++) {
 			if (state.modmode && !cmds[i]["modmode"]) continue; //don't execute certain commands in modmode
 			if ((res = cmds[i].cmd.exec(txt))) {
+				if (loghide && !cmds[i]["logdodgable"]) {
+					return;
+				}
 				cmds[i].run(nick, text, res, msg);
 				lastmsg = now;
 				return;
 			}
 		}
 	});
+}
+
+function loghide(txt) {
+	return (/^\s/.test(txt))?" ":"";
 }
 
 function q_makedict(nick, text) {
@@ -596,17 +607,18 @@ function q(cmd, quote, opts) {
 	var newcmd;
 	if (typeof quote == "string") {
 		newcmd = { cmd: cmd, run: function(nick, text, res) {
-			bot.say("#tppleague", quote);
+			bot.say("#tppleague", loghide(text)+quote);
 		} };
 	} else if (_.isArray(quote)) {
 		newcmd = { cmd: cmd, run: function(nick, text, res) {
-			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
+			bot.say("#tppleague", loghide(text)+quote[Math.floor(Math.random()*quote.length)]);
 		} };
 	} else if (_.isFunction(quote)) {
 		newcmd = { cmd: cmd, run: function(nick, text, res) {
-			bot.say("#tppleague", quote(res, q_makedict(nick, text)));
+			bot.say("#tppleague", loghide(text)+quote(res, q_makedict(nick, text)));
 		} };
 	}
+	newcmd.logdodgable = true;
 	if (opts) extend(newcmd, opts);
 	cmds.push(newcmd);
 }
@@ -616,19 +628,20 @@ function dq(cmd, quote, opts) {
 	if (typeof quote == "string") {
 		newcmd = { cmd: cmd, run: function(nick, text, res) {
 			if (!state.friendly) return;
-			bot.say("#tppleague", quote);
+			bot.say("#tppleague", loghide(text)+quote);
 		} };
 	} else if (_.isArray(quote)) {
 		newcmd = { cmd: cmd, run: function(nick, text, res) {
 			if (!state.friendly) return;
-			bot.say("#tppleague", quote[Math.floor(Math.random()*quote.length)]);
+			bot.say("#tppleague", loghide(text)+quote[Math.floor(Math.random()*quote.length)]);
 		} };
 	}  else if (_.isFunction(quote)) {
 		newcmd = { cmd: cmd, run: function(nick, text, res) {
 			if (!state.friendly) return;
-			bot.say("#tppleague", quote(res, q_makedict(nick, text)));
+			bot.say("#tppleague", loghide(text)+quote(res, q_makedict(nick, text)));
 		} };
 	}
+	newcmd.logdodgable = true;
 	newcmd.doof = true;
 	if (opts) extend(newcmd, opts);
 	cmds.push(newcmd);
@@ -732,7 +745,8 @@ cmds.push({
 		
 		var cdi = averageToCDI(avg);
 		bot.say("#tppleague", "Current Chat Death Index: "+cdi+" ("+avg.toFixed(3)+")");
-	}
+	},
+	logdodgable: true,
 });
 
 ////////// Complex Commands /////////////
@@ -861,7 +875,8 @@ cmds.push({
 	cmds.push({
 		cmd : /^flip ?(.*)/i,
 		run : function(nick, text, res) {
-			var me = "(╯°□°）╯︵";
+			var lh = loghide(text);
+			var me = lh+"(╯°□°）╯︵";
 			if (res[1] == lastflip) me = "(ﾉಥ益ಥ）ﾉ﻿";
 			switch (res[1].toLowerCase()) {
 				case "table": bot.say("#tppleague", me+" ┻━┻"); break;
@@ -869,7 +884,7 @@ cmds.push({
 				case "2 tables":
 				case "two tables":
 				case "tables":
-					bot.say("#tppleague", "┻━┻ ︵ヽ(`Д´)ﾉ︵﻿ ┻━┻"); break;
+					bot.say("#tppleague", lh+"┻━┻ ︵ヽ(`Д´)ﾉ︵﻿ ┻━┻"); break;
 				case "plsrespecttables":
 				case "prt":
 				case "pleaserespecttables":
@@ -880,32 +895,35 @@ cmds.push({
 					
 			}
 			lastflip = res[1].toLowerCase();
-		}
+		},
+		logdodgable : true,
 	});
 
 	cmds.push({
 		cmd : /^(please|pls)re?spe?ct(tables|\w+)/i,
 		run : function(nick, text, res) {
+			var lh = loghide(text)
 			switch (lastflip) {
-				case "table": bot.say("#tppleague", "┬─┬ノ(ಠ_ಠノ)"); break;
-				case "person": bot.say("#tppleague", "-( °-°)- ノ(ಠ_ಠノ)"); break;
+				case "table": bot.say("#tppleague", lh+"┬─┬ノ(ಠ_ಠノ)"); break;
+				case "person": bot.say("#tppleague", lh+"-( °-°)- ノ(ಠ_ಠノ)"); break;
 				case "2 tables":
 				case "two tables":
 				case "tables":
-					bot.say("#tppleague", "┬─┬ ︵ヽ(ಠ_ಠ)ﾉ︵ ┬─┬"); break;
+					bot.say("#tppleague", lh+"┬─┬ ︵ヽ(ಠ_ಠ)ﾉ︵ ┬─┬"); break;
 				case "plsrespecttables":
 				case "prt":
 				case "pleaserespecttables":
-					bot.say("#tppleague", "/u/PleaseRespectTables ┬✿-»┬ノ(ಥ﹏ಥノ)"); break;
+					bot.say("#tppleague", lh+"/u/PleaseRespectTables ┬✿-»┬ノ(ಥ﹏ಥノ)"); break;
 				case 0:
-					bot.say("#tppleague", "ＬＥＡＶＥ　ＴＨＥ　ＧＯＤＤＡＭＮＥＤ　ＴＡＢＬＥ　ＡＬＯＮＥ！！！　 (•̪●)=ε/̵͇̿̿/'̿'̿ ̿ ̿̿ ̿ ̿”┬─┬Ψ(° д°)"); break;
+					bot.say("#tppleague", lh+"ＬＥＡＶＥ　ＴＨＥ　ＧＯＤＤＡＭＮＥＤ　ＴＡＢＬＥ　ＡＬＯＮＥ！！！　 (•̪●)=ε/̵͇̿̿/'̿'̿ ̿ ̿̿ ̿ ̿”┬─┬Ψ(° д°)"); break;
 					//bot.say("#tppleague", "┬✿-»┬"); break;
 					//bot.say("#tppleague", "┬─┬"); break;
 				default:
-					bot.say("#tppleague", lastflip+" ノ(ಠ_ಠノ)"); break;
+					bot.say("#tppleague", lh+lastflip+" ノ(ಠ_ಠノ)"); break;
 			}
 			lastflip = 0;
-		}
+		},
+		logdodgable : true,
 	});
 })();
 
@@ -913,9 +931,11 @@ var rot13 = require('./caesar-cipher');
 cmds.push({
 	cmd: /^rot(\d{1,2}) (.*)/i,
 	run: function(nick, text, res) {
+		var lh = loghide(text)
 		var rotnum = Number(res[1]) % 26;
-		bot.say("#tppleague", nick+': '+rot13(res[2], rotnum));
-	}
+		bot.say("#tppleague", lh+nick+': '+rot13(res[2], rotnum));
+	},
+	logdodgable: true,
 });
 
 
@@ -1255,6 +1275,9 @@ q(/^damn/i, '"Damn" - Deadinsky66 2014');
 q(/^virtualboy/i, '"ALL HAIL THE VIRTUAL BOY" - Satoru Iwata 2014');
 dq(/^oppression/i, '"NO MORE OPPRESSION!" - Deadinsky66 2015');
 
+q(/^(brexit|voters)/i, `"No Brit is ever allowed to post anything smug about dumb US voters ever again." --zakharov on Brexit, 2016`);
+q(/^surf/i, `"BloodTrail surfing is a lot easier with the dick in first" - FaithfulForce 2016`);
+
 dq(/^norespect/i, '"And not a single F was given." - Abyll 2015');
 dq(/^bunker/i, '"C\'EST MON BUNKER" - Liria_10 2014');
 
@@ -1316,8 +1339,10 @@ dq(/^drama(hour)?/i, `"RUH ROH DRAMA HOUR TIME BOYS" - Iwamiger 2015`);
 cmds.push({
 	cmd : /^(popcorn)/i,
 	run : function(nick, text, res) {
-		bot.action("#tppleague", `begins dispensing popcorn, and hands the first batch to ${nick}.`);
-	}
+		var lh = loghide(text);
+		bot.action("#tppleague", lh+`begins dispensing popcorn, and hands the first batch to ${nick}.`);
+	},
+	logdodgable : true,
 });
 
 dq(/^(rude|rood|zinzolin|gorm|bronius|giallo|ryoku|ghetsis)/i, 

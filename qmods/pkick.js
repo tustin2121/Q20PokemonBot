@@ -87,6 +87,7 @@ function namesCheck(nicks){
 function joinCheck(nick, msg){
 	safely(function(){
 		//console.log("DEBUG: joinCheck", nick, /^(dead|mobile)insky/i.test(nick));
+		if (require("./friendly").state.modmode) return;
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			state.deadIsHere = true;
 			console.log("puppy: ", state.deadIsHere);

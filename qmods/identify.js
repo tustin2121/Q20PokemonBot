@@ -296,10 +296,10 @@ function analizeUser(msg) {
 		res = /((?:[0-9]{1,3})\.(?:[0-9]{1,3})\.(?:[0-9]{1,3})\.(?:[0-9]{1,3}))/i.exec(msg.host);
 		if (res && res[1]) ip = res[1];
 		
-		res = /^gateway\/web\/freenode\//i.test(msg.host);
-		if (res) webclient = true;
+		webclient = /^gateway\/web\//i.test(msg.host);
+		// webclient |= /^gateway\/web\/irccloud\.com\//i.test(msg.host);
 		
-		var res = /^unaffiliated\/(.+)/i.exec(msg.host);
+		res = /^unaffiliated\/(.+)/i.exec(msg.host);
 		if (res && res[1]) cloak = res[1];
 	}
 	

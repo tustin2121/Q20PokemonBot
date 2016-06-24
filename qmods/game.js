@@ -20,7 +20,7 @@ var strcomp = natural.JaroWinklerDistance;
 
 const BANNED_CHANNELS = ["##tppleague#id", "#poketext", "#twitchplayspokemon"];
 //const BANNED_CHANNELS = ["#twitchplayspokemon", "##tppleague#id", "#poketext"];
-const LIMITED_CHANNELS = ["#tppleague", "#TPPTableTop"];
+const LIMITED_CHANNELS = ["#tppleague", "#TPPTableTop", "#tppdw"];
 
 {
 	natural.BayesClassifier.load("data/classifier.json", null, function(err, cl){
@@ -176,6 +176,7 @@ extend(Game.prototype, {
 		if (!this.localBanList) return false;
 		if (this.localBanList.indexOf(from) > -1) { return true; }
 		if (/^TPPLDiscordBot$/i.test(from)) return true;
+		if (/^DootBot/i.test(from)) return true;
 		if (/^hftf$/i.test(from)) return true;
 		return false;
 	},
