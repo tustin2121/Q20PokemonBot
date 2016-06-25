@@ -595,6 +595,7 @@ function __connectionComplete() {
 		bot.join("#tppleague");
 		bot.join("#playq20");
 		bot.join("#poketext");
+		bot.join("#tppdw");
 	}, 2000);
 	
 	__setupTimeout(); //sets up a new ping timeout responder

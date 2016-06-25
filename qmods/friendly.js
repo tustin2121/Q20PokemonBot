@@ -35,6 +35,7 @@ module.exports = {
 		bot.addListener("-mode", respondOpOff);
 		bot.addListener("notice", respondNotice);
 		// bot.addListener("raw", debugRaw);
+		bot.addListener("join#tppdw", joinCheckDw);
 		
 		cdi_interval = setInterval(storeCDI, 1000 * 60); //every 60 seconds
 	},
@@ -52,6 +53,7 @@ module.exports = {
 		bot.removeListener("-mode", respondOpOff);
 		bot.removeListener("notice", respondNotice);
 		// bot.removeListener("raw", debugRaw);
+		bot.removeListener("join#tppdw", joinCheckDw);
 		
 		clearInterval(cdi_interval);
 	},
@@ -108,7 +110,7 @@ function namesCheck(nicks){
 		console.log(nicks);
 		var voiceBatch = [];
 		for (var name in nicks) {
-			console.log("league names: ", name);
+			// console.log("league names: ", name);
 			if (/^doofbot$/i.test(name)) {
 				state.friendly = false;
 				console.log("friendly: ", state.friendly);
@@ -126,7 +128,7 @@ function namesCheck(nicks){
 				
 				if (voiceBatch.length >= 4) {
 					// MODE #TPPTableTop +v Q20PokemonBot
-					console.log('.send("MODE", "#tppleague", "+v", name);');
+					console.log(`.send("MODE", "#tppleague", "+v", ${voiceBatch.join(" ")});`);
 					bot.send("MODE", "#tppleague", "+v", voiceBatch.join(" "));
 					voiceBatch = [];
 				}
@@ -135,7 +137,7 @@ function namesCheck(nicks){
 		
 		if (voiceBatch.length > 0) {
 			// MODE #TPPTableTop +v Q20PokemonBot
-			console.log('.send("MODE", "#tppleague", "+v", name);');
+			console.log(`.send("MODE", "#tppleague", "+v", ${voiceBatch.join(" ")});`);
 			bot.send("MODE", "#tppleague", "+v", voiceBatch.join(" "));
 			voiceBatch = null;
 		}
@@ -207,6 +209,12 @@ function joinCheck(nick, msg){
 			lastJoin = msg;
 		}
 	}
+}
+
+function joinCheckDw(nick, msg){
+	safely(function(){
+		bot.say("#tppdw", "o/");
+	});
 }
 
 function quitCheck(nick, reason, chans, msg){
