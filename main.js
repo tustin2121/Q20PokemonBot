@@ -55,6 +55,37 @@ var poketext = require("./qmods/poketext");
 // }
 
 ///////////////////////////////////
+var pingHandler = (function(){
+	const PING_TIMEOUT = 1000 * 60 * 10; //10 minutes
+	var pingTimeoutId = 0;
+	var lastPing = 0;
+	
+	// Called to set up the ping timeout keepalive
+	function __setup() {
+		lastPing = Date.now();
+		clearTimeout(pingTimeoutId);
+		pingTimeoutId = setTimeout(__timeout, PING_TIMEOUT);
+	}
+	
+	// Called when the server pings us, to reset the timeout
+	function __ping() {
+		lastPing = Date.now();
+		clearTimeout(pingTimeoutId);
+		pingTimeoutId = setTimeout(__timeout, PING_TIMEOUT);
+	}
+	
+	function __timeout() {
+		console.log("__pingTimeout");
+		bot.send("PING", "AreYouStillThere?"+Date.now());
+		lastPing = Date.now();
+		pingTimeoutId = setTimeout(__timeout, PING_TIMEOUT);
+	}
+	
+	return {
+		setup : __setup,
+		ping : __ping,
+	}
+})();
 /*
 const PING_TIMEOUT = 300 * 1000; //300 seconds
 var pingTimeoutId = 0;
@@ -94,9 +125,9 @@ function __updatePing(){
 	pingTimeoutId = setTimeout(__pingTimeout, PING_TIMEOUT);
 }
 /*/
-function __setupTimeout() {}
-function __pingTimeout() {}
-function __updatePing(){}
+// function __setupTimeout() {}
+// function __pingTimeout() {}
+// function __updatePing(){}
 //*/
 ///////////////////////////////////
 
@@ -156,11 +187,17 @@ global.setTimeoutSafely = function(callback, fail, timeout) {
 // 	console.log(msg);
 // });
 
-bot.addListener("ping", function() {
-	__updatePing();
+bot.addListener("ping", function(arg) {
+	pingHandler.ping();
+	//__updatePing();
 	for (var c in currChans) {
 		currChans[c].emit("ping");
 	}
+});
+
+bot.addListener("pong", function(arg){
+	console.log("pong:", arg);
+	pingHandler.ping();
 });
 
 // On receiving notice (usually from server)
@@ -598,7 +635,8 @@ function __connectionComplete() {
 		bot.join("#tppdw");
 	}, 2000);
 	
-	__setupTimeout(); //sets up a new ping timeout responder
+	// __setupTimeout(); //sets up a new ping timeout responder
+	pingHandler.setup();
 }
 
 (function() {

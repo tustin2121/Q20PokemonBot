@@ -97,6 +97,13 @@ function joinCheck(nick, msg){
 			// bot.say("#tppleague", "Breaking: Puppy Nation Officials have claimed that Deadinsky is building WMKs (Weapons of Mass Kicking) and are calling for a declaration of war. More at 11.");
 			// bot.say("#tppleague", "Breaking: Puppy Protesters outside capital hill oppose going to war with Deadinsky. \"He's only one man! He can't kick us all!\". More at 11.");
 			var rand = Math.random();
+			// if (!state["walkin"])
+			// {
+			// 	bot.say("#tppleague", `As ${nick} walks into the room, the puppies in the room give him a standing ovation and 3 different medals. And while ${nick} stands there, confused by this, they scatter.`);
+			// 	state.store.score_dead += 100;
+			// 	state.walkin = true;
+			// 	return;
+			// }
 			if (rand < CHANCE_URANIUM) {
 				bot.say("#tppleague", `As ${nick} walks into the room, he accidentally steps on some ${NAME_URANIUM}. He pockets it.`);
 				state.store.uranium++;

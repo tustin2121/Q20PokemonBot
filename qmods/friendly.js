@@ -1385,9 +1385,11 @@ q(/^quotebot$/i, '"Reminder i Run the Quote Bot and anyone who tries to copy tha
 q(/^(fools|idiots)\!?/i, `"Im surrounded by those of questionable knowledge. sometime i wonder why. its like a day. but at least we have to fight." --DootBot 2015-2016`);
 q(/^(sentient)/i, 'https://tppx.herokuapp.com/league/?date=2015-12-13T03:00#id78415163');
 q(/^(tpp|tpppark)?rule1/i, '"tpp park rule 1: don\'t run any countries" --Dootbot 2016');
-q(/^defeat/i, '"Hello my name is defeat, I know you recognize me, Just when you think you can win, I\'ll drag you back down again, \'Til you lost all belief" - DoofBot 2015');
+q(/^defeat/i, '"Hello my name is defeat, I know you recognize me, Just when you think you can win, I\'ll drag you back down again, \'Til you lost all belief" --DoofBot 2015');
 q(/^botstuff/i, '"This bot stuff is getting silly." --Dootbot 2015');
-q(/^fury/i, '"I will shit fury all over the place." - Dootbot 2016');
+q(/^fury/i, '"I will shit fury all over the place." --Dootbot 2016');
+q(/^duck/i, `"ur a masochist can someone put that in DuckDuckGo?" --DootBot 2016`);
+q(/^parents/i, `"my parents will be a thing." --DootBot 2016`);
 
 q(/^2014/i, [
 	'"Apparently we don\'t have any quotes for 2014..." - Tustn2121 2016'

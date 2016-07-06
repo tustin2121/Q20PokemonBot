@@ -154,6 +154,13 @@ cmds.push({
 });
 
 cmds.push({
+	cmd: /^(ping|send ping)/i,
+	run: function(text, res) {
+		bot.send("PING", "Q20Hi-"+Date.now());
+	}
+});
+
+cmds.push({
 	cmd: /^(send|dc) ([\w\d]+) ([\w\d]+) ([\w\d]+) (.*)/i,
 	run: function(text, res) {
 		bot.send(res[2], res[3], res[4], res[5]);

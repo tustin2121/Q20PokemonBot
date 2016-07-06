@@ -14,6 +14,7 @@ module.exports = {
 	setup : function() {
 		bot.addListener("mon_update", updateMontior);
 		bot.addListener("ping", pingUpdate);
+		bot.addListener("pong", pingUpdate);
 		bot.addListener("module-reloaded", moduleReload);
 		
 		setTimeout(function(){
@@ -24,6 +25,7 @@ module.exports = {
 	teardown : function(){
 		bot.removeListener("mon_update", updateMontior)
 		bot.removeListener("ping", pingUpdate);
+		bot.removeListener("pong", pingUpdate);
 		bot.removeListener("module-reloaded", moduleReload);
 	},
 	
@@ -50,6 +52,7 @@ var state = module.exports.state = {
 	currMonitor: "",
 	
 	lastPing: 0,
+	lastPingArg: "",
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,8 +64,9 @@ function moduleReload(module){
 	}
 }
 
-function pingUpdate() {
+function pingUpdate(arg) {
 	state.lastPing = new Date().getTime();
+	state.lastPingArg = arg;
 	updateMontior();
 }
 
@@ -142,7 +146,9 @@ clic.white(" Channels: ") + printJoinedList() +"\n" +
 		}
 		
 		function printPingTimeStamp() {
-			var str = new Date(state.lastPing).toString();
+			// var str = new Date(state.lastPing).toString();
+			var d = new Date(state.lastPing);
+			var str = `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()} ${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}`;
 			
 			var now = new Date().getTime();
 			if (state.lastPing + (1000*260) < now) {
@@ -150,6 +156,8 @@ clic.white(" Channels: ") + printJoinedList() +"\n" +
 			}
 			
 			str += " (~"+Math.round((now - state.lastPing)/(60*1000))+" min ago)";
+			
+			str += ` [ ${state.lastPingArg} ]`;
 			
 			return str;
 		}
