@@ -10,7 +10,7 @@ var _ = require("underscore");
 module.exports = {
     setup : function() {
         bot.addListener("names#tppleague", namesCheck);
-		bot.addListener("join#tppleague", joinCheck);
+		// bot.addListener("join#tppleague", joinCheck);
 		bot.addListener("part#tppleague", partCheck);
 		bot.addListener("kick#tppleague", partCheck);
 		bot.addListener("quit", partCheck);
@@ -21,7 +21,7 @@ module.exports = {
     
     teardown : function() {
         bot.removeListener("names#tppleague", namesCheck);
-		bot.removeListener("join#tppleague", joinCheck);
+		// bot.removeListener("join#tppleague", joinCheck);
 		bot.removeListener("part#tppleague", partCheck);
 		bot.removeListener("kick#tppleague", partCheck);
 		bot.removeListener("quit", partCheck);
@@ -87,7 +87,7 @@ function namesCheck(nicks){
 function joinCheck(nick, msg){
 	safely(function(){
 		//console.log("DEBUG: joinCheck", nick, /^(dead|mobile)insky/i.test(nick));
-		if (require("./friendly").state.modmode) return;
+		// if (require("./friendly").state.modmode) return;
 		if (/^(dead|mobile)insky/i.test(nick)) {
 			state.deadIsHere = true;
 			console.log("puppy: ", state.deadIsHere);
@@ -107,8 +107,9 @@ function joinCheck(nick, msg){
 			if (rand < CHANCE_URANIUM) {
 				bot.say("#tppleague", `As ${nick} walks into the room, he accidentally steps on some ${NAME_URANIUM}. He pockets it.`);
 				state.store.uranium++;
+				return true;
 			}
-			else if (rand < 0.45) {
+			if (rand < 0.45) {
 				var str = nick+" walks into the room and ";
 				var quote = [
 					"a bucket falls on his head and two puppies fall down on it and smack it. They run off as Deadinsky gets his bearings.",
@@ -120,14 +121,14 @@ function joinCheck(nick, msg){
 				str += quote[Math.floor(Math.random()*quote.length)];
 				bot.say("#tppleague", str);
 				state.store.score_puppy += 1;
+				return true;
 			}
-			else {
-				bot.say("#tppleague", "As "+nick+" walks into the room, the puppies in the area tense up and turn to face him.");
-			}
-			
+			bot.say("#tppleague", "As "+nick+" walks into the room, the puppies in the area tense up and turn to face him.");
+			return true;
 		}
 	});
 }
+module.exports.joinCheck = joinCheck;
 
 function partCheck(nick, msg){
 	safely(function(){

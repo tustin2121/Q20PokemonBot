@@ -19,6 +19,7 @@ module.exports = function(filename){
 	function forceSave() {
 		try {
 			fs.writeFileSync(filename, JSON.stringify(backing));
+			dirty = false;
 			return true;
 		} catch (e) {
 			console.error(`Failed to flush ${filename} to disk!`, e);
@@ -26,6 +27,7 @@ module.exports = function(filename){
 		}
 	}
 	var _int_ = setInterval(function(){
+		if (!dirty) return;
 		forceSave();
 	}, 5*60*1000);
 	

@@ -147,6 +147,14 @@ cmds.push({
 });
 
 cmds.push({
+	cmd: /^(?:friendly load|load friendly)/i,
+	run: function(text) {
+		require("./friendly").loadFile();
+		console.log("File loaded from disk.");
+	}
+});
+
+cmds.push({
 	cmd: /^refresh(mon(itor)?)?/i,
 	run: function(text) {
 		bot.emit("mon_update");

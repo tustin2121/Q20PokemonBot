@@ -21,6 +21,11 @@ function averageToCDI(avg) {
 	else return -y;
 }
 
+function noping(name) {
+	if (name < 2) return name;
+	return name.substr(0, 1) + '\u200B' + name.substr(1); // Zero-Width space
+}
+
 module.exports = {
 	setup : function() {
 		bot.addListener("names#tppleague", namesCheck);
@@ -36,6 +41,8 @@ module.exports = {
 		bot.addListener("notice", respondNotice);
 		// bot.addListener("raw", debugRaw);
 		bot.addListener("join#tppdw", joinCheckDw);
+		
+		this.state.store = require("./save-proxy")("data/savedfriendly.json");
 		
 		cdi_interval = setInterval(storeCDI, 1000 * 60); //every 60 seconds
 	},
@@ -55,6 +62,10 @@ module.exports = {
 		// bot.removeListener("raw", debugRaw);
 		bot.removeListener("join#tppdw", joinCheckDw);
 		
+		this.state.store.forceSave();
+    	this.state.store.dispose();
+    	delete this.state.store;
+		
 		clearInterval(cdi_interval);
 	},
 	
@@ -62,19 +73,22 @@ module.exports = {
 		extend(this.state, old.state);
 		// state.tv_tropes_timeout = 0;
 	},
+	
+	loadFile : function() {
+    	this.state.store.dispose();
+    	this.state.store = require("./save-proxy")("data/savedfriendly.json");;
+    },
 }
 
 var state = module.exports.state = {
 	friendly : true,
 	nukelist : ["/r/pokemon", "/r/gaming"],
 	
+	store : null,
+	
 	lastPrefixes : { //Last messages by user
 		
 	},
-	
-	puppy : false,
-	puppy_score_puppy: 0,
-	puppy_score_dead: 0,
 	
 	wtf_count : 0,
 	tv_tropes_timeout : 0,
@@ -162,7 +176,7 @@ function joinCheck(nick, msg){
 		if (state.modmode) {
 			bot.say("#tppleague", "o/ Please respect the current discussion.")
 		} else if (state.friendly) {
-			if (!__greeting(msg)) {
+			if (!__greeting(msg) && !require("./pkick").joinCheck(nick, msg)) {
 				bot.say("#tppleague", "o/");
 			}
 		}
@@ -202,6 +216,12 @@ function joinCheck(nick, msg){
 					bot.say("#tppleague", "o/ wb");
 					return true;
 				}
+			}
+			
+			if (msg.nick == "SparkPlug3" || /^\~?SparkPlug/.test(msg.user))
+			{
+				bot.say("#tppleague", "o/ haldo");
+				return true;
 			}
 		} catch (e) {
 			console.log("ERROR in __greeting!", e.stack);
@@ -450,8 +470,8 @@ function chatmessage(nick, text, msg) {
 			(msg.host && /^AStrasbourg(.*)\.abo\.wanadoo\.fr$/.test(msg.host)) 
 		))
 		{
-			if (!state.wtf_count) state.wtf_count = Math.floor(Math.random() * 5256) + 485;
-			state.wtf_count++;
+			if (!state.store.wtf_count) state.store.wtf_count = -495; //Math.floor(Math.random() * 5256) + 485;
+			state.store.wtf_count++;
 		}
 		
 		// Section for responding to bots:
@@ -471,6 +491,38 @@ function chatmessage(nick, text, msg) {
 				console.log('.send("KICK", "#tppleague", nick, "Inappropriate behavior!");');
 				bot.send("KICK", "#tppleague", nick, "Inappropriate behavior!");
 				return;
+			}
+		}
+		
+		if (/\btrump\b/i.test(text)) {
+			// console.log(`Trump Alert: ${text}, PREV: ${state.store.trump_nick}, TS: ${state.store.trump_timestamp} > ${Date.now()} = ${Date.now() - state.store.trump_timestamp > 1000 * 60 * 10}`);
+			var old = state.store.trump_timestamp;
+			var now = Date.now();
+			var isbot = (/bot$/i.test(nick) || /doot|doof|yay|^!/.test(text));
+			if (!state.modmode && !isbot && (now - old > 1000 * 60 * 10)) { //10 minute grace period
+				var diff = (now - old) / 1000; //seconds
+				var m = Math.round(diff / 60) % 60; //minutes
+				var h = Math.round(diff / (60 * 60)) % 24;
+				var d = Math.round(diff / (60 * 60 * 24));
+				var time = m+" minute(s)";
+				if (h > 0) {
+					time = h+" hour(s), and " + time;
+				}
+				if (d > 0) {
+					time = d+" day(s), "+((h==0)?"and ":"")+time;
+				}
+				var botabuse = "";
+				if (state.store.trump_botabuse == state.store.trump_timestamp) {
+					state.store.trump_botabuse = 0;
+					botabuse = " while abusing bots";
+				}
+				bot.say("#tppleague", `It has been ${time} since the last mention of Trump by [${noping(state.store.trump_nick)}]${botabuse}.`);
+			}
+			if (!isbot) {
+				state.store.trump_timestamp = now;
+				state.store.trump_nick = nick;
+			} else if (state.store.trump_timestamp - 1000 < now) { //within a second
+				state.store.trump_botabuse = state.store.trump_timestamp;
 			}
 		}
 		
@@ -728,7 +780,7 @@ cmds.push({
 
 q(/^(q20)?(help|commands)/, "My command list: http://pastebin.com/DiuTA1CG");
 q(/^identify(s)? ?([a-zA-Z0-9_-]+)?/i, "Please monitor ##tppleague#id for this information.");
-q(/^log/i, qp`${"nick"}: Logs: https://tppx.herokuapp.com/league/`, {modemode : true});
+q(/^log/i, qp`${"nick"}: Logs: https://tppleague.me/irc/`, {modemode : true});
 q(/^(forum|meta)$/i, `rip meta forum 2015-2015`);
 q(/^park/i, qp`${"nick"}: http://tustin2121.github.io/TPPPark/`);
 
@@ -1233,18 +1285,18 @@ cmds.push({
 		if (!state.friendly) return;
 		
 		var creator = "already";
-		var botname = "bot,";
+		var botname = "your bot,";
 		switch (res[1]) {
 			case "doot":	creator = "TieSoul"; break;
 			case "pika":	creator = "PikalaxALT"; break;
 			case "q20":		creator = "Tustin"; break;
 			case "doof": 	creator = "Leonys"; break;
-			case "yay": 	creator = "xfix"; break;
+			case "yay": 	creator = "Tustin"; botname = "xfix's bot,"; break;
 			case "log":
-			case "logs":	creator = "xfix"; botname = "logs,"; break;
+			case "logs":	creator = "Tustin"; botname = "xfix's logs,"; break;
 		}
 		
-		bot.say("#tppleague", `"Fix your ${botname} ${creator}!" - xfix 2014`);
+		bot.say("#tppleague", `"Fix ${botname} ${creator}!" - xfix 2014`);
 	},
 });
 
@@ -1267,11 +1319,58 @@ cmds.push({
 	}
 });
 
+(function(){
+	var variations = [
+		"woman is ‘elbowed in the boob’ https://twitter.com/Daily_Express/status/809744899356536832", //original
+		"someone drops ketchup on someone else's new shoes.",
+		"plumber destroys mushroom garden.",
+		"eighteen nude rugby players set off explosives and tackle pensioners at random.",
+		"a series of colorful shapes made of 4 squares each fall neatly into place.",
+		"37 sloths wearing roller skates are released to the masses.",
+		"is inevitable, due to the fact it is a Vegan cheese protest.",
+		"train rollercoaster crashes into crowd of people.",
+		"they learned that cheese, in fact, is not vegan.",
+		"pyramid of live elephants collapses.",
+		"blue hedgehog shows off his emerald collection.",
+		"local man sits on floor when there are still free seats.",
+		"protesters light themselves on fire like that one album cover.",
+		"Kevin from Marketing decides to go to the toilet BUT NOT ON HIS BREAK.",
+		"two Canadians bump into each other and one doesn't say sorry.",
+		"someone says something mean on the internet.",
+		"vegan cheese protest descends into CHAOS.",
+		"a herd of milking cows stampede through the area",
+		"Britain leaves the EU.",
+		"cheese decides to eat a bacon sandwich.",
+		"someone drops the 5 necessary cards to summon Exodia the Forbidden One.",
+		"people get their dicks out for Harambe.",
+		"it was announced that Trump likes vegan cheese.",
+		"someone starts reading poetry.",
+		"Mewtwo breaks out of the last pokeball the trainer had.",
+		"someone slips on a bannana peel and crashes through a cabbage stand.",
+		"man asks girl if he could Brie her a drink.",
+		"‘Cheesine’ was a 19th century artificial cheese-substitute imported from America. It didn’t take off.",
+	];
+	
+	cmds.push({
+		cmd: /^(?:vegan)?cheese(?:protest)?(?: (.*))?/,
+		run: function(nick, text, res) {
+			var quote = "Vegan cheese protest descends into CHAOS as ";
+			if (res[1] && res[1].trim()) {
+				quote += res[1].trim();
+			} else {
+				quote += variations[Math.floor(Math.random() * variations.length)];
+			}
+			bot.say("#tppleague", quote);
+		}
+	})
+})();
+
 ////////// Quotes ///////////
 
 dq(/^(rip|no)doof/i, "rip DoofBot");
 q(/^(rip|no)doot/i, "rip DootBot");
 q(/^(rip|no)yay/i, "rip YayBot");
+q(/^(rip|no)pika(lax)?/i, "rip PikalaxBot");
 // q(/^(rip|no)q20/i, "But... I'm still here... ;_;");
 q(/^(rip|no)q20/i, `I'm not currently K-Lined, actually. Keepo`);
 q(/^rimshot/i, "badum tish!");
@@ -1288,6 +1387,8 @@ q(/^surf/i, `"BloodTrail surfing is a lot easier with the dick in first" - Faith
 
 dq(/^norespect/i, '"And not a single F was given." - Abyll 2015');
 dq(/^bunker/i, '"C\'EST MON BUNKER" - Liria_10 2014');
+
+q(/^triggered/i, `WutFace 'NAM!! NotLikeThis`);
 
 q(/^(fuckyou|asshole)/i, '"And you\'re calling me an asshole for that? Fuck you." - Streamer 2015');
 q(/^ignore/i, '"Yes it\'s all my fault /ignore doesn\'t work as expected. Maybe you should have sucked harder." --Streamer 2016');
@@ -1308,6 +1409,7 @@ dq(/^freedom/i, [
 	'"Eat a freedom dick!" - airow99 2015',
 ]);
 q(/^long/i, '"you\'re too long BabyRage" - Iwamiger 2016');
+dq(/^karp/i, '"karp" - karp');
 
 dq(/^singapore/i, '"I live in Singapore, bitch." - ColeWalski 2014');
 dq(/^fuel/i, '"THANKS FOR THE FUEL, DICK" - ColeWalski 2014');
@@ -1390,6 +1492,11 @@ q(/^botstuff/i, '"This bot stuff is getting silly." --Dootbot 2015');
 q(/^fury/i, '"I will shit fury all over the place." --Dootbot 2016');
 q(/^duck/i, `"ur a masochist can someone put that in DuckDuckGo?" --DootBot 2016`);
 q(/^parents/i, `"my parents will be a thing." --DootBot 2016`);
+q(/^biology/i, `"maybe i should learn my biology cause i forgot it 4Head." --DootBot 2016`);
+q(/^(holy)?retribution/i, `"I know the holy retribution thy wicked words in thy heart would bring forth. But thou hast dug the grave thou must pay the price, ye foolish one whom even the other makes negotiations easier." --DootBot 2016`);
+
+q(/^hands/i, `"canis is a great artist so i imagine he’s good with his hands" -sandyxdaydream 2016`);
+q(/^sex/i, `"its nice to have someone screaming yay during sex" -sandyxdaydream 2016`);
 
 q(/^2014/i, [
 	'"Apparently we don\'t have any quotes for 2014..." - Tustn2121 2016'
@@ -1403,6 +1510,27 @@ q(/^2016/i, [
 	'"Time to plot your 2016 quotes. Keepo" - Soma_Ghost 2016',
 	'"I just wanted the first 2016 quote BibleThump" - Pokson 2016',
 	'"and I need 2016 quote tustin2121 BabyRage" - sohippy 2016',
+	'"#Fuck2016" - The World 2016',
+]);
+q(/^2017/i, [
+	'"#Fuck2016" - The World 2016',
+]);
+
+q(/^(pgo|pokemongo|election)/i, `"dear nintendo, please put super rare pokemon at polling places this november" --@krisstraub 2016`); //https://twitter.com/krisstraub/status/752301772060844032
+
+q(/^whereis(xfix|.*)/i, [
+	"On the moon.", "Circumnavigating the globe in a balloon.", "20,000 leagues under the sea.",
+	"Trying to catch pokemon in Pokemon Go.", "Running around with their hair on fire.",
+	"In Lilliput.", "Somewhere over there.", "Lost in the Burmuda triangle.", "Morridor.",
+	"Somewhere between Sinnoh and Johto.", "At the bakery.", "Somewhere on the Material Plane.",
+	"In another plane of existence.", "On the dark side of the moon.", "Circling the sun.",
+	"Chernobyl.", "Somewhere where the light is least.", "Somewhere over the rainbow, way up high.",
+	"Lost in Sword Art Online.", "In the Matrix.", "Beyond the borders of the Fire Nation.", 
+	"At the bottom of a well somewhere, examining ReDeads.", "Under da sea.", 
+	"Travelling through Capital Wasteland.", "Running from wolves in Skyrim.",
+	"Fishing in Hoenn.", "Orbiting Pluto.", "Spelunking in Mt. Moon.", "Touring the Halo.",
+	"Being trained to conquer galaxies while you're stilling learning how to SPELL YOUR NAME!?!1!",
+	"Collecting the Dragon Balls.", "On a cruise ship in Alaska.", 
 ]);
 
 q(/^(password|12345?)/, 'https://www.youtube.com/watch?v=a6iW-8xPw3k');
@@ -1519,5 +1647,7 @@ q(/^plagueinc/i, qp`"I was playing Plague Inc and when I searched for plagues no
 	showed up, it linked me to the Silph CEO's room where he asked me if I had consulted 
 	the helix fossil. On the back wall of his office was a portrait of the Villager praising Helix." --Iwamiger 2014`);
 
+q(/^shia/i, `http://pastebin.com/rPxuaxui`);
 
+q(/^whyserver/i, `"Just because I bought the server doesn't mean I know everything about it yet. BrokeBack" --tustin2121 2016`);
 
