@@ -1,0 +1,22 @@
+{
+  "name": "q20pokemonbot",
+  "version": "2.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tustin2121/Q20PokemonBot.git"
+  },
+  "author": "tustin2121",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tustin2121/Q20PokemonBot/issues"
+  },
+  "homepage": "https://github.com/tustin2121/Q20PokemonBot#readme",
+  "dependencies": {
+    "discord.js": "^11.3.2"
+  }
+}
