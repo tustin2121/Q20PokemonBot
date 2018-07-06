@@ -17,6 +17,12 @@
   },
   "homepage": "https://github.com/tustin2121/Q20PokemonBot#readme",
   "dependencies": {
-    "discord.js": "^11.3.2"
+    "discord.js": "^11.3.2",
+    "log4js": "^2.10.0",
+    "mkdirp": "^0.5.1",
+    "natural": "^0.6.1"
+  },
+  "devDependencies": {
+    "eslint": "^5.0.1"
   }
 }
