@@ -1,0 +1,37 @@
+// game/xdat/pokemon.js
+// Extra information for pokemon
+
+module.exports = {
+	'nidoran-f':	{ altNames:/^(nidoran (female|girl)|(female|girl) nidoran)$/i, },
+	'nidoran-m':	{ altNames:/^(nidoran (male|boy)|(male|boy) nidoran)$/i, },
+	nidorina:		{ altNames:/^(nidorina|nidorina (female|girl)|(female|girl) nidorina)$/i, },
+	nidorino:		{ altNames:/^(nidorino|nidorino (male|boy)|(male|boy) nidorino)$/i, },
+	farfetchd:		{ altNames:['dux', 'farfetchd'], },
+	gastly:			{ altNames:['ghastly'], },
+	'mr-mime':		{ altNames:['mime'], noConfuse:['pokemon:mime-jr'], },
+	'mime-jr':		{ noConfuse:['pokemon:mr-mime'], },
+	dragonair:		{ noConfuse:['pokemon:dragonite', 'type:dragon'], },
+	dragonite:		{ noConfuse:['pokemon:dragonair', 'type:dragon'], },
+	porygon2:		{ altNames:['porygon two'], },
+	flabebe:		{ altNames:['flabebe'], },
+	
+	charmeleon:		{ altNames:['abby'], },
+	pidgeot:		{ altNames:['bird jesus'], },
+	rattata:		{ altNames:['jay leno'], },
+	raticate:		{ altNames:['digrat', 'ace'], },
+	venomoth:		{ altNames:['atv'], },
+	hitmonlee:		{ altNames:['c3ko'], },
+	lapras:			{ altNames:['air'], },
+	omastar:		{ altNames:['lord helix', 'helix'], },
+	kabutops:		{ altNames:['lord dome', 'dome'], },
+	feraligatr:		{ altNames:/^(laz[oe]rgat[oe]r)$/i, },
+	sentret:		{ altNames:['admiral'], },
+	azumarill:		{ altNames:['m4','t4'], },
+	wingull:		{ altNames:['bird cop'], },
+	minun:			{ altNames:['c3', 'ccc'], },
+	cradily:		{ altNames:['lord root', 'root'], },
+	groudon:		{ altNames:['kenya'], },
+	kricketune:		{ altNames:/^de(le){1,} ?wo{2,}p$/i, },
+	shinx:			{ altNames:['sunshine'], },
+	roserade:		{ altNames:['sunbrella'], },
+};

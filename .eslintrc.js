@@ -13,7 +13,7 @@ module.exports = {
         getLogger: false,
     },
     rules: {
-        "handle-callback-error": "warn",
+        // "handle-callback-error": "warn",
         "indent": [ "warn", "tab" ],
         "quotes": [ "warn", "single", {
             "avoidEscape": true,
